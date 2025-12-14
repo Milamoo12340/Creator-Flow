@@ -1,3 +1,5 @@
+import { EvidenceSource } from "@/components/EvidenceCard";
+
 export interface Document {
   id: string;
   title: string;
@@ -5,6 +7,12 @@ export interface Document {
   clearance: "TOP SECRET" | "RESTRICTED" | "DECLASSIFIED";
   summary: string;
   tags: string[];
+}
+
+export interface TerminalResponse {
+  text: string;
+  sources?: EvidenceSource[];
+  depth_level: "SURFACE" | "DEEP" | "DARK" | "VAULT";
 }
 
 export const mockDocuments: Document[] = [
@@ -56,6 +64,60 @@ export const mockDocuments: Document[] = [
     summary: "Sonar readings from the Baltic Sea anomaly indicate a hollow metallic structure with active electromagnetic output.",
     tags: ["OCEAN", "ANOMALY", "STRUCTURE"],
   },
+];
+
+export const complexResponses: TerminalResponse[] = [
+  {
+    text: "Scanning Sector 7G... Pattern match found in deep archival storage. The narrative you know is incomplete. Records indicate a parallel technological development track suppressed in 1954.",
+    depth_level: "DEEP",
+    sources: [
+      {
+        type: "document",
+        title: "The Greada Treaty",
+        date: "1954-02-20",
+        confidence: 85,
+        snippet: "Agreement terms regarding technology transfer in exchange for biological sampling rights..."
+      },
+      {
+        type: "leak",
+        title: "Majestic-12 Briefing",
+        confidence: 92,
+        snippet: "Top Secret Eyes Only. The recovery of the craft at Aztec, NM confirmed extraterrestrial origin."
+      }
+    ]
+  },
+  {
+    text: "Accessing the Vault. Warning: Cognitive hazard detected. The data suggests human civilization is cyclical, not linear. We are currently in the 6th iteration.",
+    depth_level: "VAULT",
+    sources: [
+      {
+        type: "document",
+        title: "Göbekli Tepe Geoscans",
+        date: "2019-09-12",
+        confidence: 98,
+        snippet: "Ground penetrating radar reveals structures dating back 12,000+ years, showing advanced masonry unknown to hunter-gatherers."
+      },
+      {
+        type: "intercept",
+        title: "Sumerian Tablet Translation #442",
+        confidence: 76,
+        snippet: "Those who came from heaven to earth... they engineered the workers for the gold mines."
+      }
+    ]
+  },
+  {
+    text: "Tracing financial flows through shell companies in the Caymans. Connection established between [REDACTED] Corporation and global weather modification patents.",
+    depth_level: "DARK",
+    sources: [
+      {
+        type: "link",
+        title: "Patent US-20250044A",
+        date: "2023-11-01",
+        confidence: 100,
+        snippet: "Method for atmospheric ionization and storm steering using orbital arrays."
+      }
+    ]
+  }
 ];
 
 export const terminalResponses = [
