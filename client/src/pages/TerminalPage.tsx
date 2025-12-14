@@ -37,6 +37,7 @@ export function TerminalPage() {
   const [inputValue, setInputValue] = useState("");
   const [searchDepth, setSearchDepth] = useState<SearchDepth>("SURFACE");
   const [isTyping, setIsTyping] = useState(false);
+  const [thinkingLog, setThinkingLog] = useState("SCANNING LAYERS...");
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -68,6 +69,19 @@ export function TerminalPage() {
 
     const delay = searchDepth === "SURFACE" ? 1000 : searchDepth === "DEEP" ? 2000 : 3000;
     
+    // Simulate tool activity logs
+    const activeTools = [
+      "TorBot: Crawling .onion indices...",
+      "OnionScan: Verifying host integrity...",
+      "WaybackPy: Checking archival snapshots...",
+      "DorkScanner: Querying public file directories..."
+    ];
+    
+    // Randomly pick a tool log to show in the "typing" state
+    const toolLog = activeTools[Math.floor(Math.random() * activeTools.length)];
+    
+    setThinkingLog(toolLog); // We need to add this state
+
     setTimeout(() => {
       let response: TerminalResponse;
 
@@ -228,7 +242,7 @@ export function TerminalPage() {
                 <div className="flex items-start">
                     <div className="max-w-[80%] rounded-sm p-3 font-mono text-sm text-primary bg-secondary/50 border border-secondary">
                         <div className="flex items-center gap-2">
-                             <span className="animate-pulse">SCANNING LAYERS [{searchDepth}]...</span>
+                             <span className="animate-pulse">[{searchDepth}] {thinkingLog}</span>
                              <span className="inline-block w-2 h-4 bg-primary animate-blink ml-1"></span>
                         </div>
                     </div>

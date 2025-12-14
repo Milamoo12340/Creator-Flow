@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/Sidebar";
 import { TerminalPage } from "@/pages/TerminalPage";
 import { ArchivesPage } from "@/pages/ArchivesPage";
 import { NetworkPage } from "@/pages/NetworkPage";
+import { ConfigPage } from "@/pages/ConfigPage";
 import NotFound from "@/pages/not-found";
 import bgImage from "@assets/generated_images/dark_abstract_cyber_network_with_data_streams.png";
 
@@ -15,6 +16,7 @@ function Router() {
       <Route path="/" component={TerminalPage} />
       <Route path="/archives" component={ArchivesPage} />
       <Route path="/network" component={NetworkPage} />
+      <Route path="/config" component={ConfigPage} />
       <Route component={NotFound} />
     </Switch>
   );

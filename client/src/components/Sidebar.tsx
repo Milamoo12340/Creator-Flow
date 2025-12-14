@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Terminal, Database, Network, ShieldAlert, Cpu } from "lucide-react";
+import { Terminal, Database, Network, ShieldAlert, Cpu, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function Sidebar() {
@@ -9,6 +9,7 @@ export function Sidebar() {
     { href: "/", icon: Terminal, label: "TERMINAL" },
     { href: "/archives", icon: Database, label: "ARCHIVES" },
     { href: "/network", icon: Network, label: "NETWORK" },
+    { href: "/config", icon: Settings, label: "SYSTEM" },
   ];
 
   return (
