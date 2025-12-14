@@ -2,9 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Send, Terminal as TerminalIcon, Layers, ChevronDown, Lock } from "lucide-react";
+import { Send, Terminal as TerminalIcon, Layers, ChevronDown, Lock, ShieldCheck, ArrowDownCircle } from "lucide-react";
 import { GlitchHeader } from "@/components/GlitchHeader";
-import { complexResponses, TerminalResponse } from "@/lib/mockData";
+import { complexResponses, TerminalResponse, tieredTopics } from "@/lib/mockData";
 import { EvidenceCard, EvidenceSource } from "@/components/EvidenceCard";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
@@ -14,6 +14,8 @@ interface Message {
   timestamp: string;
   sources?: EvidenceSource[];
   depth?: "SURFACE" | "DEEP" | "DARK" | "VAULT";
+  relatedTopicId?: string;
+  nextDepth?: "DEEP" | "DARK" | "VAULT";
 }
 
 type SearchDepth = "SURFACE" | "DEEP" | "DARK" | "VAULT";
@@ -56,25 +58,66 @@ export function TerminalPage() {
     setInputValue("");
     setIsTyping(true);
 
-    // Simulate AI thinking and typing based on depth
+    const lowerInput = userMsg.content.toLowerCase();
+    
+    // Simple keyword matching to simulate the AI finding the right topic
+    let topicId = "";
+    if (lowerInput.includes("mind") || lowerInput.includes("mkultra") || lowerInput.includes("cia")) topicId = "mkultra";
+    else if (lowerInput.includes("ufo") || lowerInput.includes("uap") || lowerInput.includes("alien")) topicId = "uap";
+    else if (lowerInput.includes("surveillance") || lowerInput.includes("snowden") || lowerInput.includes("spy")) topicId = "surveillance";
+
     const delay = searchDepth === "SURFACE" ? 1000 : searchDepth === "DEEP" ? 2000 : 3000;
     
     setTimeout(() => {
-      // Pick a random response from the complex mock data that roughly matches or just random for now
-      // In a real app, this would query the backend with the specific depth
-      const randomResponse = complexResponses[Math.floor(Math.random() * complexResponses.length)];
+      let response: TerminalResponse;
+
+      if (topicId && tieredTopics[topicId]) {
+        // If we found a topic, use the user's selected depth, or fallback to available layers
+        const topic = tieredTopics[topicId];
+        // Ensure the requested depth exists, otherwise default to SURFACE
+        response = topic.layers[searchDepth] || topic.layers["SURFACE"];
+        response.related_topic_id = topicId; // Ensure we pass this through
+      } else {
+        // Fallback for unknown topics
+         response = complexResponses[Math.floor(Math.random() * complexResponses.length)];
+      }
       
       const aiMsg: Message = {
         role: "ai",
-        content: randomResponse.text,
+        content: response.text,
         timestamp: new Date().toLocaleTimeString(),
-        sources: randomResponse.sources,
-        depth: searchDepth // Use the user's selected depth for the "flavor" of the response
+        sources: response.sources,
+        depth: response.depth_level,
+        relatedTopicId: response.related_topic_id,
+        nextDepth: response.next_depth
       };
       
       setMessages((prev) => [...prev, aiMsg]);
       setIsTyping(false);
     }, delay);
+  };
+
+  const handleDigDeeper = (topicId: string, nextDepth: "DEEP" | "DARK" | "VAULT") => {
+    setIsTyping(true);
+    setSearchDepth(nextDepth); // Update UI state to reflect new depth
+
+    setTimeout(() => {
+       const topic = tieredTopics[topicId];
+       const response = topic.layers[nextDepth];
+
+       const aiMsg: Message = {
+        role: "ai",
+        content: response.text,
+        timestamp: new Date().toLocaleTimeString(),
+        sources: response.sources,
+        depth: response.depth_level,
+        relatedTopicId: topicId,
+        nextDepth: response.next_depth
+      };
+
+      setMessages((prev) => [...prev, aiMsg]);
+      setIsTyping(false);
+    }, 1500);
   };
 
   const getDepthColor = (depth?: string) => {
@@ -153,7 +196,7 @@ export function TerminalPage() {
                     <span>{msg.role}</span>
                     <span>{msg.timestamp}</span>
                     {msg.depth && (
-                        <span className={`ml-auto ${getDepthColor(msg.depth)}`}>[{msg.depth}]</span>
+                        <span className={`ml-auto font-bold ${getDepthColor(msg.depth)}`}>[{msg.depth}]</span>
                     )}
                   </div>
                   <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
@@ -161,6 +204,21 @@ export function TerminalPage() {
                   {/* Evidence Cards for AI responses */}
                   {msg.sources && msg.sources.length > 0 && (
                       <EvidenceCard sources={msg.sources} />
+                  )}
+
+                  {/* DIG DEEPER BUTTON */}
+                  {msg.nextDepth && msg.relatedTopicId && (
+                     <div className="mt-4 pt-2 border-t border-dashed border-white/10">
+                        <Button 
+                          onClick={() => handleDigDeeper(msg.relatedTopicId!, msg.nextDepth!)}
+                          variant="outline" 
+                          size="sm"
+                          className={`w-full border-dashed bg-transparent hover:bg-secondary/80 h-8 text-xs font-mono uppercase tracking-widest transition-all ${getDepthColor(msg.nextDepth)} border-opacity-30`}
+                        >
+                          <ArrowDownCircle className="w-3 h-3 mr-2" />
+                          Decrypt Layer: {msg.nextDepth}
+                        </Button>
+                     </div>
                   )}
                 </div>
               </div>
