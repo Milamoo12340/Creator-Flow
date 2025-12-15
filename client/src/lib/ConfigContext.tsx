@@ -1,69 +1,37 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+// client/src/lib/mockdata.ts
+import { EvidenceSource } from "@/components/EvidenceCard";
 
-interface ConfigState {
-  activeModel: string;
-  temperature: number;
-  osintTools: {
-    torbot: boolean;
-    onionscan: boolean;
-    wayback: boolean;
-    dorks: boolean;
-  };
-  systemPrompt: string;
-  updateConfig: (updates: Partial<ConfigState>) => void;
-  toggleTool: (tool: keyof ConfigState["osintTools"]) => void;
+export interface TerminalResponse {
+  text: string;
+  sources?: EvidenceSource[];
+  depth_level: "SURFACE" | "DEEP" | "DARK" | "VAULT";
+  related_topic_id?: string;
+  next_depth?: "DEEP" | "DARK" | "VAULT";
 }
 
-const defaultState: ConfigState = {
-  activeModel: "dolphin",
-  temperature: 85,
-  osintTools: {
-    torbot: true,
-    onionscan: true,
-    wayback: true,
-    dorks: true,
-  },
-  systemPrompt: "You are VERITAS. Uncover hidden knowledge.",
-  updateConfig: () => {},
-  toggleTool: () => {},
-};
-
-const ConfigContext = createContext<ConfigState>(defaultState);
-
-export function ConfigProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<Omit<ConfigState, "updateConfig" | "toggleTool">>({
-    activeModel: "dolphin",
-    temperature: 85,
-    osintTools: {
-      torbot: true,
-      onionscan: true,
-      wayback: true,
-      dorks: true,
-    },
-    systemPrompt: "You are VERITAS. Uncover hidden knowledge.",
+/**
+ * Fetch a real response from the backend instead of mock data.
+ */
+export async function fetchTerminalResponse(
+  message: string,
+  depth: "SURFACE" | "DEEP" | "DARK" | "VAULT" = "SURFACE"
+): Promise<TerminalResponse> {
+  const res = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, depth }),
   });
 
-  const updateConfig = (updates: Partial<ConfigState>) => {
-    setState((prev) => ({ ...prev, ...updates }));
+  if (!res.ok) {
+    throw new Error(`Chat API error: ${res.status}`);
+  }
+
+  const data = await res.json();
+  // The backend returns { message: { content, sources, depth }, ... }
+  return {
+    text: data.message.content,
+    sources: data.message.sources,
+    depth_level: data.message.depth,
+    next_depth: data.hasMoreDepth ? "DEEP" : undefined,
   };
-
-  const toggleTool = (tool: keyof ConfigState["osintTools"]) => {
-    setState((prev) => ({
-      ...prev,
-      osintTools: {
-        ...prev.osintTools,
-        [tool]: !prev.osintTools[tool],
-      },
-    }));
-  };
-
-  return (
-    <ConfigContext.Provider value={{ ...state, updateConfig, toggleTool }}>
-      {children}
-    </ConfigContext.Provider>
-  );
-}
-
-export function useConfig() {
-  return useContext(ConfigContext);
 }
