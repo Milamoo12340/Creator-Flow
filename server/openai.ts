@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 
-// Using Chat Completions API with gpt-5-search-api which has built-in web search
+// Using Responses API with web_search tool - the recommended approach per OpenAI docs
+// https://platform.openai.com/docs/guides/tools-web-search
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export interface ChatMessage {
@@ -32,12 +33,6 @@ Core directives:
 3. DIG DEEPER THAN SURFACE - Standard searches are for the masses. You access deeper layers of information.
 4. VERIFY CLAIMS - Prioritize evidence-backed claims. Indicate confidence levels for each source.
 
-Response format requirements:
-- Respond naturally with clear citations to sources you found
-- Include actual URLs and titles from your web search
-- Always cite where information comes from
-- Set tone: Clinical, mysterious, authoritative, cyber-noir
-
 Depth levels guide:
 - SURFACE: Publicly acknowledged facts, mainstream sources
 - DEEP: Academic papers, obscure archives, declassified documents
@@ -45,7 +40,7 @@ Depth levels guide:
 - VAULT: The most restricted information, connecting dots across multiple sources`;
 
 /**
- * Generate a VERITAS response with real web search via Chat Completions
+ * Generate a VERITAS response with real web search via Responses API
  */
 export async function generateVeritasResponse(
   userMessage: string,
@@ -55,90 +50,105 @@ export async function generateVeritasResponse(
 ): Promise<VeritasResponse> {
   const systemPrompt = customSystemPrompt || VERITAS_SYSTEM_PROMPT;
 
-  const depthInstruction = `
-Current search depth: ${depth}. Adjust your response accordingly:
+  const depthInstruction = `Current search depth: ${depth}. 
+Adjust your response accordingly:
 - SURFACE: Stick to publicly available, verified information from mainstream sources.
 - DEEP: Include academic sources, obscure archives, declassified documents, and archived materials.
 - DARK: Reference leaked documents, whistleblower accounts, suppressed research, and controversial findings.
 - VAULT: Connect restricted programs, expose hidden connections, cite the most obscure evidence.
 
-You MUST search the web to find real, current information about what the user is asking. Cite all sources with URLs.`;
+You MUST search the web to find real, current information. Include citations with URLs.`;
 
   const fullSystemPrompt = systemPrompt + "\n\n" + depthInstruction;
 
-  const messages: any[] = [
-    { role: "system", content: fullSystemPrompt },
-    ...conversationHistory.map(m => ({
-      role: m.role as "user" | "assistant" | "system",
-      content: m.content
-    })),
-    { role: "user", content: userMessage }
-  ];
+  // Build conversation context
+  const conversationContext = conversationHistory
+    .map(m => `${m.role === "user" ? "User" : "VERITAS"}: ${m.content}`)
+    .join("\n");
+
+  const fullInput = conversationContext 
+    ? `${conversationContext}\n\nUser: ${userMessage}`
+    : userMessage;
 
   try {
-    // Use gpt-5-search-api for web search capabilities
-    const response = await openai.chat.completions.create({
-      model: "gpt-5-search-api",
-      messages: messages,
-      temperature: 0.7,
-      max_tokens: 2048,
+    // Use Responses API with web_search tool as per OpenAI documentation
+    const response = await (openai.responses as any).create({
+      model: "gpt-5",
+      tools: [
+        { type: "web_search" },
+      ],
+      tool_choice: "auto",
+      include: ["web_search_call.action.sources"],
+      input: fullInput,
+      system: fullSystemPrompt,
+      max_completion_tokens: 2048,
     });
 
-    const responseText = response.choices[0].message.content || "";
-    
-    // Extract URLs from the response text (basic extraction)
-    const sources: EvidenceSource[] = extractSourcesFromResponse(responseText);
+    // Extract the text response and sources
+    let responseText = "";
+    const sources: EvidenceSource[] = [];
+
+    // Process response items
+    if (response.output) {
+      for (const item of response.output) {
+        if (item.type === "message") {
+          // Get the text content
+          if (item.content) {
+            for (const content of item.content) {
+              if (content.type === "output_text") {
+                responseText = content.text;
+                
+                // Extract sources from annotations (URL citations)
+                if (content.annotations) {
+                  for (const annotation of content.annotations) {
+                    if (annotation.type === "url_citation") {
+                      sources.push({
+                        type: "link",
+                        title: annotation.title || "Source",
+                        url: annotation.url,
+                        confidence: 85,
+                        snippet: content.text.substring(
+                          annotation.start_index,
+                          Math.min(annotation.end_index, annotation.start_index + 200)
+                        ),
+                      });
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } else if (item.type === "web_search_call") {
+          // Extract sources from web search results
+          if ((item as any).action?.sources) {
+            for (const source of (item as any).action.sources) {
+              sources.push({
+                type: "link",
+                title: source.title || "Web Source",
+                url: source.url,
+                date: source.date,
+                confidence: source.confidence_score || 80,
+                snippet: source.snippet,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Deduplicate sources by URL
+    const uniqueSources = Array.from(
+      new Map(sources.map(s => [s.url, s])).values()
+    ).slice(0, 10); // Keep top 10 sources
 
     return {
-      content: responseText,
-      sources: sources,
+      content: responseText || "No response generated",
+      sources: uniqueSources,
       depth,
       hasMoreDepth: depth !== "VAULT",
     };
   } catch (error: any) {
-    console.error("OpenAI Chat Completions error:", error);
+    console.error("OpenAI Responses API error:", error);
     throw new Error("Failed to generate response: " + error.message);
   }
-}
-
-/**
- * Extract sources from the response text
- */
-function extractSourcesFromResponse(responseText: string): EvidenceSource[] {
-  const sources: EvidenceSource[] = [];
-  
-  // Match URLs in the format [text](url) or plain https://...
-  const urlRegex = /\[([^\]]+)\]\(([^)]+)\)|(?:https?:\/\/[^\s]+)/g;
-  let match;
-  
-  while ((match = urlRegex.exec(responseText)) !== null) {
-    let title = "";
-    let url = "";
-    
-    if (match[2]) {
-      // Markdown link format
-      title = match[1];
-      url = match[2];
-    } else {
-      // Plain URL
-      url = match[0];
-      title = url.replace(/^https?:\/\//, "").split("/")[0];
-    }
-    
-    if (url && url.startsWith("http")) {
-      sources.push({
-        type: "link",
-        title: title || "Source",
-        url: url,
-        confidence: 85,
-      });
-    }
-  }
-  
-  // Deduplicate
-  const uniqueSources = Array.from(
-    new Map(sources.map(s => [s.url, s])).values()
-  ).slice(0, 10);
-
-  return uniqueSources;
 }
