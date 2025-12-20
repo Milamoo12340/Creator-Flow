@@ -29,7 +29,7 @@ You are not just a chatbot—you are a research companion, investigator, and adv
 // }
 
 // getPositiveNews();
-
+}
 import OpenAI from 'openai';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
@@ -50,6 +50,20 @@ const CONFIG = {
   circuitBreaker: { failureThreshold: 5, resetTimeMs: 60000 },
   cost: { maxTokensPerCall: 2000 },
 };
+
+// Example of using archive.org
+//
+
+{
+  GET "http://archive.org/wayback/available?url=example.com" 200 (12ms) 
+  }
+async function getArchive(url: string) {
+  const archiveUrl = `http://archive.org/wayback/available?url=${url}`;
+  const response = await fetch(archiveUrl);
+  const data = await response.json();
+  return data;
+}
+
 
 // Main AI pipeline
 export async function veritasAIRequest(
