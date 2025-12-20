@@ -23,20 +23,18 @@ export function Sidebar() {
 
       <nav className="flex-1 py-8 flex flex-col gap-2 px-3">
         {navItems.map((item) => (
-          <Link key={item.href} href={item.href}>
-            <a
-              className={cn(
-                "flex items-center gap-4 px-3 py-3 rounded-sm transition-all duration-300 group hover:bg-primary/10",
-                location === item.href
-                  ? "bg-primary/20 text-primary border-l-2 border-primary"
-                  : "text-muted-foreground hover:text-primary"
-              )}
-            >
-              <item.icon className="w-5 h-5 group-hover:scale-110 transition-transform" />
-              <span className="font-mono text-sm tracking-wider hidden lg:block">
-                {item.label}
-              </span>
-            </a>
+          <Link key={item.href} href={item.href}
+            className={cn(
+              "flex items-center gap-4 px-3 py-3 rounded-sm transition-all duration-300 group hover:bg-primary/10",
+              location === item.href
+                ? "bg-primary/20 text-primary border-l-2 border-primary"
+                : "text-muted-foreground hover:text-primary"
+            )}
+          >
+            <item.icon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+            <span className="font-mono text-sm tracking-wider hidden lg:block">
+              {item.label}
+            </span>
           </Link>
         ))}
       </nav>

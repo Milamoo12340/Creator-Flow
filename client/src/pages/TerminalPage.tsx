@@ -46,7 +46,7 @@ export function TerminalPage() {
     }
   }, [messages, isTyping]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!inputValue.trim()) return;
 
     const userMsg: Message = {
@@ -59,17 +59,7 @@ export function TerminalPage() {
     setInputValue("");
     setIsTyping(true);
 
-    const lowerInput = userMsg.content.toLowerCase();
-    
-    // Simple keyword matching to simulate the AI finding the right topic
-    let topicId = "";
-    if (lowerInput.includes("mind") || lowerInput.includes("mkultra") || lowerInput.includes("cia")) topicId = "mkultra";
-    else if (lowerInput.includes("ufo") || lowerInput.includes("uap") || lowerInput.includes("alien")) topicId = "uap";
-    else if (lowerInput.includes("surveillance") || lowerInput.includes("snowden") || lowerInput.includes("spy")) topicId = "surveillance";
-
-    const delay = searchDepth === "SURFACE" ? 1000 : searchDepth === "DEEP" ? 2000 : 3000;
-    
-    // Simulate tool activity logs
+    // Show tool activity log
     const activeTools = [
       "TorBot: Crawling .onion indices...",
       "OnionScan: Verifying host integrity...",
@@ -77,38 +67,71 @@ export function TerminalPage() {
       "DorkScanner: Querying public file directories..."
     ];
     
-    // Randomly pick a tool log to show in the "typing" state
     const toolLog = activeTools[Math.floor(Math.random() * activeTools.length)];
-    
-    setThinkingLog(toolLog); // We need to add this state
+    setThinkingLog(toolLog);
 
-    setTimeout(() => {
-      let response: TerminalResponse;
+    try {
+      // Call the real backend API
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          message: userMsg.content,
+          depth: searchDepth,
+          conversationId: messages[messages.length - 1]?.relatedTopicId
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      const aiMsg: Message = {
+        role: "ai",
+        content: data.message.content,
+        timestamp: new Date().toLocaleTimeString(),
+        sources: data.message.sources || [],
+        depth: data.message.depth as any,
+        relatedTopicId: data.conversationId?.toString(),
+        nextDepth: data.hasMoreDepth ? (searchDepth === "SURFACE" ? "DEEP" : searchDepth === "DEEP" ? "DARK" : "VAULT") : undefined
+      };
+      
+      setMessages((prev) => [...prev, aiMsg]);
+    } catch (error: any) {
+      console.error("Chat error:", error);
+      
+      // Fallback to mock data if API fails
+      let mockResponse: TerminalResponse;
+      const lowerInput = userMsg.content.toLowerCase();
+      let topicId = "";
+      if (lowerInput.includes("mind") || lowerInput.includes("mkultra") || lowerInput.includes("cia")) topicId = "mkultra";
+      else if (lowerInput.includes("ufo") || lowerInput.includes("uap") || lowerInput.includes("alien")) topicId = "uap";
+      else if (lowerInput.includes("surveillance") || lowerInput.includes("snowden") || lowerInput.includes("spy")) topicId = "surveillance";
 
       if (topicId && tieredTopics[topicId]) {
-        // If we found a topic, use the user's selected depth, or fallback to available layers
         const topic = tieredTopics[topicId];
-        // Ensure the requested depth exists, otherwise default to SURFACE
-        response = topic.layers[searchDepth] || topic.layers["SURFACE"];
-        response.related_topic_id = topicId; // Ensure we pass this through
+        mockResponse = topic.layers[searchDepth] || topic.layers["SURFACE"];
+        mockResponse.related_topic_id = topicId;
       } else {
-        // Fallback for unknown topics
-         response = complexResponses[Math.floor(Math.random() * complexResponses.length)];
+        mockResponse = complexResponses[Math.floor(Math.random() * complexResponses.length)];
       }
       
       const aiMsg: Message = {
         role: "ai",
-        content: response.text,
+        content: mockResponse.text,
         timestamp: new Date().toLocaleTimeString(),
-        sources: response.sources,
-        depth: response.depth_level,
-        relatedTopicId: response.related_topic_id,
-        nextDepth: response.next_depth
+        sources: mockResponse.sources,
+        depth: mockResponse.depth_level,
+        relatedTopicId: mockResponse.related_topic_id,
+        nextDepth: mockResponse.next_depth
       };
       
       setMessages((prev) => [...prev, aiMsg]);
+    } finally {
       setIsTyping(false);
-    }, delay);
+    }
   };
 
   const handleDigDeeper = (topicId: string, nextDepth: "DEEP" | "DARK" | "VAULT") => {
