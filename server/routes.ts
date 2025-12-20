@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateVeritasResponse, type ChatMessage } from "./openai";
+import { generateVeritasResponse, type ChatMessage, type EvidenceSource } from "./openai";
 import { insertMessageSchema, insertConversationSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -23,33 +23,23 @@ export async function registerRoutes(
       const body = chatRequestSchema.parse(req.body);
 
       let conversationId = body.conversationId;
+      let chatHistory: ChatMessage[] = [];
 
-      // Create new conversation if needed
-      if (!conversationId) {
-        const conversation = await storage.createConversation({
-          title: body.message.substring(0, 50) + "...",
-          userId: null,
-        });
-        conversationId = conversation.id;
+      // Try to get conversation history (optional - works if DB is available)
+      if (conversationId) {
+        try {
+          const history = await storage.getMessagesByConversation(conversationId);
+          chatHistory = history.slice(-10).map(m => ({
+            role: m.role === "user" ? "user" : "assistant",
+            content: m.content,
+          }));
+        } catch (dbError) {
+          console.warn("Could not retrieve conversation history from DB:", dbError);
+          chatHistory = [];
+        }
       }
 
-      // Save user message
-      await storage.createMessage({
-        conversationId,
-        role: "user",
-        content: body.message,
-        depth: body.depth,
-        sources: null,
-      });
-
-      // Get conversation history (last 10 messages)
-      const history = await storage.getMessagesByConversation(conversationId);
-      const chatHistory: ChatMessage[] = history.slice(-10).map(m => ({
-        role: m.role === "user" ? "user" : "assistant",
-        content: m.content,
-      }));
-
-      // Generate AI response with evidence
+      // Generate AI response with web search
       const aiResponse = await generateVeritasResponse(
         body.message,
         body.depth,
@@ -57,18 +47,75 @@ export async function registerRoutes(
         body.systemPrompt
       );
 
-      // Save AI message with sources
-      const savedMessage = await storage.createMessage({
-        conversationId,
+      // Try to save to database (optional - if DB is available)
+      let savedMessage: any = {
+        id: Math.floor(Math.random() * 1000000),
+        conversationId: conversationId || 0,
         role: "ai",
         content: aiResponse.content,
         depth: aiResponse.depth,
         sources: aiResponse.sources,
-      });
+        createdAt: new Date(),
+      };
+
+      if (conversationId) {
+        try {
+          // Try to save user message
+          await storage.createMessage({
+            conversationId,
+            role: "user",
+            content: body.message,
+            depth: body.depth,
+            sources: null,
+          });
+
+          // Try to save AI message with sources
+          savedMessage = await storage.createMessage({
+            conversationId,
+            role: "ai",
+            content: aiResponse.content,
+            depth: aiResponse.depth,
+            sources: aiResponse.sources,
+          });
+        } catch (dbError) {
+          console.warn("Could not save messages to DB:", dbError);
+          // Continue without persistence - just return the response
+        }
+      } else {
+        // No conversation ID - create one if DB is available
+        try {
+          const conversation = await storage.createConversation({
+            title: body.message.substring(0, 50) + "...",
+            userId: null,
+          });
+          conversationId = conversation.id;
+          savedMessage.conversationId = conversationId;
+
+          // Save both messages
+          await storage.createMessage({
+            conversationId,
+            role: "user",
+            content: body.message,
+            depth: body.depth,
+            sources: null,
+          });
+
+          savedMessage = await storage.createMessage({
+            conversationId,
+            role: "ai",
+            content: aiResponse.content,
+            depth: aiResponse.depth,
+            sources: aiResponse.sources,
+          });
+        } catch (dbError) {
+          console.warn("Could not create conversation in DB:", dbError);
+          // Continue without persistence
+        }
+      }
 
       res.json({
         message: savedMessage,
-        conversationId,
+        conversationId: conversationId || 0,
         hasMoreDepth: aiResponse.hasMoreDepth,
       });
     } catch (error: any) {
