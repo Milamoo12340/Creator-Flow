@@ -46,3 +46,95 @@ export default function TerminalPage() {
     </div>
   );
 }
+
+// TerminalPage.tsx
+// VERITAS Conversational UI with Multi-Turn Memory and Source Attribution
+
+import React, { useState, useEffect, useRef } from "react";
+import axios from "axios";
+
+export default function TerminalPage() {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [memoryId, setMemoryId] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const sendMessage = async (e) => {
+    e.preventDefault();
+    if (!input.trim()) return;
+    setLoading(true);
+    setMessages((msgs) => [...msgs, { role: "user", text: input }]);
+    try {
+      const { data } = await axios.post("/api/chat", {
+        prompt: input,
+        memoryId,
+      });
+      setMessages((msgs) => [
+        ...msgs,
+        {
+          role: "assistant",
+          text: data.text,
+          citations: data.citations,
+          toolResults: data.toolResults,
+        },
+      ]);
+      setMemoryId(data.memoryId || memoryId);
+    } catch (err) {
+      setMessages((msgs) => [
+        ...msgs,
+        { role: "assistant", text: "Error: " + err.message },
+      ]);
+    }
+    setInput("");
+    setLoading(false);
+  };
+
+  return (
+    <div className="terminal-page">
+      <header>
+        <h1>VERITAS: Truth-Seeking AI Assistant</h1>
+        <p>
+          <strong>Mission:</strong> Uncover hidden knowledge, cite evidence, and dig through layers of information.
+        </p>
+      </header>
+      <div className="chat-window">
+        {messages.map((msg, idx) => (
+          <div key={idx} className={`msg ${msg.role}`}>
+            <div className="msg-text" dangerouslySetInnerHTML={{ __html: msg.text }} />
+            {msg.citations && (
+              <div className="citations">
+                <strong>Sources:</strong>
+                <ul>
+                  {msg.citations.map((c, i) => (
+                    <li key={i}>
+                      <a href={c.url} target="_blank" rel="noopener noreferrer">
+                        {c.title || c.url}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        ))}
+        <div ref={chatEndRef} />
+      </div>
+      <form onSubmit={sendMessage} className="chat-input-form">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Ask VERITAS anything..."
+          disabled={loading}
+        />
+        <button type="submit" disabled={loading || !input.trim()}>
+          {loading ? "Thinking..." : "Send"}
+        </button>
+      </form>
+    </div>
+  );
+}

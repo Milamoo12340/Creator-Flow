@@ -28,3 +28,46 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: result.error, meta: result.meta }, { status: 500 });
   }
 }
+// Alternative backend route
+export async function ALTERNATIVE(req: NextRequest) {
+  const { prompt, context, memoryId, userId } = await req.json();
+  try {
+    //const result = await veritasQuery({ prompt, context, memoryId, userId });
+    //return NextResponse.json(result);
+    return NextResponse.json({message: "Alternative Route"}, {status:200})
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+// routes.ts
+// alternate Backend API Routes for VERITAS
+
+import express from "express";
+import { veritasQuery } from "./openai";
+import { manageMemory } from "./memory";
+import { logTrace } from "./observability";
+
+const router = express.Router();
+
+router.post("/api/chat", async (req, res) => {
+  const { prompt, context, memoryId, userId } = req.body;
+  try {
+    const result = await veritasQuery({ prompt, context, memoryId, userId });
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/api/memory/:userId", async (req, res) => {
+  const { userId } = req.params;
+  const memory = await manageMemory({ userId });
+  res.json({ memory });
+});
+
+router.post("/api/observability", (req, res) => {
+  logTrace(req.body);
+  res.status(204).end();
+});
+
+export default router;

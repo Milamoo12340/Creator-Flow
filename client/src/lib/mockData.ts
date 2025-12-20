@@ -72,3 +72,41 @@ export async function getTerminalResponse(prompt: string): Promise<TerminalRespo
     return await fetchResponse(prompt, "SURFACE");
   }
 }
+// mockdata.ts
+// Mock Data Fixtures for VERITAS Testing
+
+import { faker } from "@faker-js/faker";
+
+export const mockUser = {
+  id: faker.string.uuid(),
+  name: faker.person.fullName(),
+  email: faker.internet.email(),
+};
+
+export const mockConversation = [
+  {
+    role: "user",
+    text: "What is the latest research on quantum computing?",
+  },
+  {
+    role: "assistant",
+    text: "According to a 2025 review in Nature, quantum error correction has advanced significantly. [Nature Review](https://www.nature.com/articles/quantum2025)",
+    citations: [
+      {
+        url: "https://www.nature.com/articles/quantum2025",
+        title: "Quantum Error Correction Advances (2025)",
+      },
+    ],
+  },
+];
+
+export const mockCitations = [
+  {
+    url: "https://arxiv.org/abs/2506.02097",
+    title: "Hybrid AI for Responsive Multi-Turn Online Conversations",
+  },
+  {
+    url: "https://web.archive.org/web/20250101/http://example.com/",
+    title: "Archived Example Page",
+  },
+];

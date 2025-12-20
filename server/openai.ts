@@ -29,7 +29,7 @@ You are not just a chatbot—you are a research companion, investigator, and adv
 // }
 
 // getPositiveNews();
-}
+
 import OpenAI from 'openai';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
@@ -41,8 +41,30 @@ import { StructuredOutputSchema } from './schemas/structuredOutput';
 
 // Provider adapters
 import { callOpenAI, callHuggingFace, callOllama } from './providers';
+import { createFallback } from "ai-fallback";
+import { openai } from "@ai-sdk/openai";
+import { huggingface } from "@ai-sdk/huggingface";
+
+const model = createFallback({
+  models: [
+    openai("gpt-5"),
+    huggingface("llama-3-70b"),
+    // Add more as needed
+  ],
+  onError: (error, modelId) => {
+    console.warn(`Error with model ${modelId}: ${error.message}. Attempting fallback.`);
+  },
+  modelResetInterval: 5 * 60 * 1000, // 5 minutes
+});
 
 // Config
+const response = await openai.responses.create({
+  model: "gpt-5",
+  tools: [{ type: "web_search" }],
+  input: "What was a concerning news story from today?",
+});
+console.log(response.output_text); // Includes inline citations
+
 const CONFIG = {
   models: ['gpt-5', 'gpt-4o', 'llama-3-70b', 'qwen-32b'],
   retry: { maxAttempts: 3, baseDelayMs: 1000, maxDelayMs: 10000 },
@@ -54,8 +76,9 @@ const CONFIG = {
 // Example of using archive.org
 //
 
+
 {
-  GET "http://archive.org/wayback/available?url=example.com" 200 (12ms) 
+  GET 'http://archive.org/wayback/available?url=example.com' 200 (12ms) 
   }
 async function getArchive(url: string) {
   const archiveUrl = `http://archive.org/wayback/available?url=${url}`;
