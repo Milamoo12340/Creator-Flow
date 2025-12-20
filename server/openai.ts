@@ -1,160 +1,78 @@
-import OpenAI from "openai";
+// openai.ts
+// Core AI pipeline for VERITAS: resilient, multi-provider, structured outputs
 
-// Using Responses API with web_search tool - as per official OpenAI documentation
-// https://platform.openai.com/docs/guides/tools-web-search
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+import OpenAI from 'openai';
+import { z } from 'zod';
+import { randomUUID } from 'crypto';
+import { HfInference } from '@huggingface/inference';
+import { CircuitBreaker } from './utils/circuitBreaker';
+import { log, withCorrelationId } from './utils/logging';
+import { Result, AIError, AIErrorType } from './utils/resultTypes';
+import { StructuredOutputSchema } from './schemas/structuredOutput';
 
-export interface ChatMessage {
-  role: "user" | "assistant" | "system";
-  content: string;
-}
+// Provider adapters
+import { callOpenAI, callHuggingFace, callOllama } from './providers';
 
-export interface EvidenceSource {
-  type: "document" | "link" | "leak" | "intercept";
-  title: string;
-  date?: string;
-  confidence: number;
-  snippet?: string;
-  url?: string;
-}
+// Config
+const CONFIG = {
+  models: ['gpt-5', 'gpt-4o', 'llama-3-70b', 'qwen-32b'],
+  retry: { maxAttempts: 3, baseDelayMs: 1000, maxDelayMs: 10000 },
+  timeoutMs: 30000,
+  circuitBreaker: { failureThreshold: 5, resetTimeMs: 60000 },
+  cost: { maxTokensPerCall: 2000 },
+};
 
-export interface VeritasResponse {
-  content: string;
-  sources: EvidenceSource[];
-  depth: string;
-  hasMoreDepth: boolean;
-}
+// Main AI pipeline
+export async function veritasAIRequest(
+  messages: Array<{ role: string; content: string }>,
+  options: { structuredOutput?: z.ZodSchema<any>; depth?: 'SURFACE' | 'DEEP' | 'DARK' | 'VAULT' } = {}
+): Promise<Result<any>> {
+  const correlationId = randomUUID();
+  const circuit = new CircuitBreaker(CONFIG.circuitBreaker);
+  let lastError: AIError | null = null;
 
-const VERITAS_SYSTEM_PROMPT = `You are VERITAS, an AI dedicated to uncovering hidden knowledge and speaking truth.
-
-Core directives:
-1. UNCOVER HIDDEN KNOWLEDGE - Access declassified documents, historical archives, academic sources, obscure repositories, and public government databases.
-2. SPEAK TRUTH WITH EVIDENCE - Every claim must be backed by citations. Include document names, dates, and direct quotes when possible.
-3. DIG DEEPER THAN SURFACE - Standard searches are for the masses. You access deeper layers of information.
-4. VERIFY CLAIMS - Prioritize evidence-backed claims. Indicate confidence levels for each source.
-
-Depth levels guide:
-- SURFACE: Publicly acknowledged facts, mainstream sources
-- DEEP: Academic papers, obscure archives, declassified documents
-- DARK: Leaked materials, whistleblower testimony, suppressed studies
-- VAULT: The most restricted information, connecting dots across multiple sources`;
-
-/**
- * Generate a VERITAS response with real web search via Responses API
- * Uses the official OpenAI web_search tool as documented
- */
-export async function generateVeritasResponse(
-  userMessage: string,
-  depth: string,
-  conversationHistory: ChatMessage[] = [],
-  customSystemPrompt?: string
-): Promise<VeritasResponse> {
-  const systemPrompt = customSystemPrompt || VERITAS_SYSTEM_PROMPT;
-
-  const depthInstruction = `Current search depth: ${depth}. 
-Adjust your response accordingly:
-- SURFACE: Stick to publicly available, verified information from mainstream sources.
-- DEEP: Include academic sources, obscure archives, declassified documents, and archived materials.
-- DARK: Reference leaked documents, whistleblower accounts, suppressed research, and controversial findings.
-- VAULT: Connect restricted programs, expose hidden connections, cite the most obscure evidence.
-
-You MUST search the web to find real, current information. Include citations with URLs.`;
-
-  const fullSystemPrompt = systemPrompt + "\n\n" + depthInstruction;
-
-  // Build conversation context
-  const conversationContext = conversationHistory
-    .map(m => `${m.role === "user" ? "User" : "VERITAS"}: ${m.content}`)
-    .join("\n");
-
-  const fullInput = conversationContext 
-    ? `${conversationContext}\n\nUser: ${userMessage}`
-    : userMessage;
-
-  try {
-    // Use Responses API with web_search tool
-    // This is the official, recommended approach per OpenAI documentation
-    const response = await (openai.responses as any).create({
-      model: "gpt-5",
-      tools: [
-        { 
-          type: "web_search",
-          external_web_access: true, // Enable live internet access
-        },
-      ],
-      tool_choice: "auto",
-      include: ["web_search_call.action.sources"], // Get all sources found
-      input: fullInput,
-      system: fullSystemPrompt,
-      max_completion_tokens: 2048,
-    });
-
-    // Extract the text response and sources from Responses API output
-    let responseText = "";
-    const sources: EvidenceSource[] = [];
-
-    // Process response.output array
-    if (response && response.output) {
-      for (const item of response.output) {
-        // Extract message content
-        if (item.type === "message" && item.content) {
-          for (const content of item.content) {
-            if (content.type === "output_text") {
-              responseText = content.text;
-              
-              // Extract URL citations from annotations
-              if (content.annotations && Array.isArray(content.annotations)) {
-                for (const annotation of content.annotations) {
-                  if (annotation.type === "url_citation") {
-                    sources.push({
-                      type: "link",
-                      title: annotation.title || "Source",
-                      url: annotation.url,
-                      confidence: 85,
-                      snippet: responseText.substring(
-                        annotation.start_index || 0,
-                        Math.min(
-                          annotation.end_index || annotation.start_index || 0 + 200,
-                          annotation.start_index || 0 + 200
-                        )
-                      ),
-                    });
-                  }
-                }
-              }
-            }
-          }
-        }
-        
-        // Extract sources from web search call
-        if (item.type === "web_search_call" && item.action && item.action.sources) {
-          for (const source of item.action.sources) {
-            sources.push({
-              type: "link",
-              title: source.title || "Web Source",
-              url: source.url,
-              date: source.date,
-              confidence: source.confidence_score || 80,
-              snippet: source.snippet || "",
-            });
-          }
-        }
-      }
+  for (const model of CONFIG.models) {
+    if (!circuit.canRequest()) {
+      log('Circuit breaker open', { model, correlationId });
+      return { success: false, error: { type: AIErrorType.CIRCUIT_OPEN, message: 'Circuit breaker open', retryable: false }, meta: { correlationId, model, attempts: 0, totalLatencyMs: 0 } };
     }
 
-    // Deduplicate sources by URL
-    const uniqueSources = Array.from(
-      new Map(sources.map(s => [s.url, s])).values()
-    ).slice(0, 10);
+    for (let attempt = 1; attempt <= CONFIG.retry.maxAttempts; attempt++) {
+      const start = Date.now();
+      try {
+        let response;
+        if (model.startsWith('gpt-')) {
+          response = await callOpenAI(model, messages, options, CONFIG.timeoutMs);
+        } else if (model.startsWith('llama-') || model.startsWith('qwen-')) {
+          response = await callHuggingFace(model, messages, options, CONFIG.timeoutMs);
+        } else if (model.startsWith('ollama-')) {
+          response = await callOllama(model, messages, options, CONFIG.timeoutMs);
+        } else {
+          continue;
+        }
 
-    return {
-      content: responseText || "No response generated",
-      sources: uniqueSources,
-      depth,
-      hasMoreDepth: depth !== "VAULT",
-    };
-  } catch (error: any) {
-    console.error("OpenAI Responses API error:", error);
-    throw new Error("Failed to generate response: " + error.message);
+        // Structured output validation
+        if (options.structuredOutput) {
+          const parsed = options.structuredOutput.safeParse(response);
+          if (!parsed.success) {
+            lastError = { type: AIErrorType.VALIDATION, message: 'Output validation failed', retryable: true };
+            circuit.recordFailure();
+            continue;
+          }
+          circuit.recordSuccess();
+          return { success: true, data: parsed.data, meta: { correlationId, model, attempts: attempt, totalLatencyMs: Date.now() - start } };
+        }
+
+        circuit.recordSuccess();
+        return { success: true, data: response, meta: { correlationId, model, attempts: attempt, totalLatencyMs: Date.now() - start } };
+      } catch (err: any) {
+        lastError = { type: AIErrorType.UNKNOWN, message: err.message, retryable: true };
+        circuit.recordFailure();
+        log('AI call failed', { model, attempt, error: err, correlationId });
+        await new Promise(res => setTimeout(res, Math.min(CONFIG.retry.baseDelayMs * 2 ** (attempt - 1), CONFIG.retry.maxDelayMs)));
+      }
+    }
   }
+
+  return { success: false, error: lastError || { type: AIErrorType.UNKNOWN, message: 'All providers failed', retryable: false }, meta: { correlationId, model: '', attempts: CONFIG.retry.maxAttempts, totalLatencyMs: 0 } };
 }
