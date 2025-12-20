@@ -1,37 +1,57 @@
-// client/src/lib/mockdata.ts
-import { EvidenceSource } from "@/components/EvidenceCard";
+import React, { createContext, useContext, useState } from "react";
 
-export interface TerminalResponse {
-  text: string;
-  sources?: EvidenceSource[];
-  depth_level: "SURFACE" | "DEEP" | "DARK" | "VAULT";
-  related_topic_id?: string;
-  next_depth?: "DEEP" | "DARK" | "VAULT";
+interface ConfigContextType {
+  activeModel: string;
+  temperature: number;
+  osintTools: {
+    torbot: boolean;
+    onionscan: boolean;
+    wayback: boolean;
+    dorks: boolean;
+  };
+  systemPrompt: string;
+  updateConfig: (updates: Partial<ConfigContextType>) => void;
+  toggleTool: (tool: keyof ConfigContextType['osintTools']) => void;
 }
 
-/**
- * Fetch a real response from the backend instead of mock data.
- */
-export async function fetchTerminalResponse(
-  message: string,
-  depth: "SURFACE" | "DEEP" | "DARK" | "VAULT" = "SURFACE"
-): Promise<TerminalResponse> {
-  const res = await fetch("/api/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, depth }),
+const ConfigContext = createContext<ConfigContextType | undefined>(undefined);
+
+export function ConfigProvider({ children }: { children: React.ReactNode }) {
+  const [config, setConfig] = useState<ConfigContextType>({
+    activeModel: "dolphin",
+    temperature: 75,
+    osintTools: {
+      torbot: true,
+      onionscan: true,
+      wayback: true,
+      dorks: true,
+    },
+    systemPrompt: "You are VERITAS, an uncensored AI dedicated to uncovering truth.",
+    updateConfig: (updates) => {
+      setConfig((prev) => ({ ...prev, ...updates }));
+    },
+    toggleTool: (tool) => {
+      setConfig((prev) => ({
+        ...prev,
+        osintTools: {
+          ...prev.osintTools,
+          [tool]: !prev.osintTools[tool],
+        },
+      }));
+    },
   });
 
-  if (!res.ok) {
-    throw new Error(`Chat API error: ${res.status}`);
-  }
+  return (
+    <ConfigContext.Provider value={config}>
+      {children}
+    </ConfigContext.Provider>
+  );
+}
 
-  const data = await res.json();
-  // The backend returns { message: { content, sources, depth }, ... }
-  return {
-    text: data.message.content,
-    sources: data.message.sources,
-    depth_level: data.message.depth,
-    next_depth: data.hasMoreDepth ? "DEEP" : undefined,
-  };
+export function useConfig() {
+  const context = useContext(ConfigContext);
+  if (!context) {
+    throw new Error("useConfig must be used within ConfigProvider");
+  }
+  return context;
 }

@@ -76,7 +76,7 @@ export async function searchWeb(query: string): Promise<{ title: string; snippet
         headers: { "Ocp-Apim-Subscription-Key": key }
       });
       if (!res.ok) continue;
-      const json = await res.json();
+      const json = await res.json() as any;
       const webPages = json.webPages?.value || [];
       for (const p of webPages) {
         results.push({

@@ -80,4 +80,29 @@ export async function registerRoutes(
   // Get conversations
   app.get("/api/conversations", async (req, res) => {
     try {
-      const allConversations = await storage.getCon
+      const allConversations = await storage.getConversationsByUser(0);
+      res.json(allConversations);
+    } catch (error: any) {
+      console.error("Get conversations error:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch conversations" });
+    }
+  });
+
+  // Get single conversation with messages
+  app.get("/api/conversations/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const conversation = await storage.getConversation(id);
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+      const messages = await storage.getMessagesByConversation(id);
+      res.json({ conversation, messages });
+    } catch (error: any) {
+      console.error("Get conversation error:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch conversation" });
+    }
+  });
+
+  return httpServer;
+}
