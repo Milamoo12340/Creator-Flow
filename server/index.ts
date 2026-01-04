@@ -69,7 +69,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  await registerRoutes(httpServer, app);
+  await registerRoutes(app);
 
   // Central error handler
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
