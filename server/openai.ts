@@ -30,11 +30,14 @@ export async function veritasQuery({ prompt, messages = [] }: { prompt?: string,
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: chatMessages,
-      response_format: { type: "json_object" },
     });
 
     const content = response.choices[0].message.content;
-    return JSON.parse(content || "{}");
+    try {
+      return JSON.parse(content || "{}");
+    } catch (e) {
+      return { text: content };
+    }
   } catch (error: any) {
     console.error("OpenAI API Error:", error);
     throw new Error(`AI request failed: ${error.message}`);

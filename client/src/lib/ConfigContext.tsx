@@ -1,5 +1,4 @@
-import  from '';
- React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState } from "react";
 
 interface ConfigContextType {
   activeModel: string;

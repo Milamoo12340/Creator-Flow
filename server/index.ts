@@ -81,7 +81,7 @@ app.use((req, res, next) => {
   });
 
   // Only setup vite in development
-  if (process.env.NODE_ENV === "production") {
+  if (app.get("env") === "production") {
     serveStatic(app);
   } else {
     const { setupVite } = await import("./vite");
