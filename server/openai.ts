@@ -2,6 +2,43 @@ import OpenAI from "openai";
 
 // The standard Replit OpenAI integration uses the AI_INTEGRATIONS_OPENAI_API_KEY
 // and AI_INTEGRATIONS_OPENAI_BASE_URL environment variables.
+// server/openai.ts
+import fetch from 'node-fetch'; // remove if using global fetch in Node 18+
+const OPENAI_KEY = process.env.OPENAI_API_KEY;
+
+if (!OPENAI_KEY) {
+  console.warn('Warning: OPENAI_API_KEY is not set. AI requests will fail.');
+}
+
+export async function veritasQuery(promptText: string) {
+  if (!OPENAI_KEY) throw new Error('Missing OPENAI_API_KEY');
+
+  const body = {
+    model: 'gpt-4o-mini', // replace with the model you use
+    messages: [{ role: 'user', content: promptText }],
+    max_tokens: 800
+  };
+
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${OPENAI_KEY}`
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`OpenAI API error ${res.status}: ${errText}`);
+  }
+
+  const data = await res.json();
+  // adapt to your route expectations
+  return data;
+}
+
+
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined,
