@@ -12,3 +12,5 @@ export default defineConfig({
     url: process.env.DATABASE_URL,
   },
 });
+
+const DATABASE_URL="postgres://postgres:postgres@localhost:5432/postgres" npm run db:push --force || true

@@ -4,8 +4,13 @@ import { serveStatic } from "./static";
 import { createServer } from "http";
 import crypto from "crypto";
 import 'dotenv/config'; // or: import dotenv from 'dotenv'; dotenv.config();
+import express from "express";
+import { registerRoutes } from "./routes";
 
 const app = express();
+app.use(express.json());
+await registerRoutes(app);
+
 const httpServer = createServer(app);
 
 declare module "http" {
@@ -70,7 +75,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  await registerRoutes(app);
+  await registerRoutes(httpServer, app);
 
   // Central error handler
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

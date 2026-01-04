@@ -1,16 +1,31 @@
 import { Express } from "express";
 import { veritasQuery } from "./openai";
-import { storage } from "./storage";
+import  "server/storage.ts";
 // server/routes.ts (or wherever you handle /api/chat)
-import express from 'express';
-import { veritasQuery } from './openai';
+
+import express from "express";
+import chatRouter from "./routes";
+
+const app = express();
+app.use(express.json());
+app.use(chatRouter);
 
 const router = express.Router();
 
-router.post('/api/chat', async (req, res) => {
+/** * Simple POST /api/chat that accepts either: * - { prompt: "..." } OR * - { messages: [...] } (chat-style) * * Returns the raw result from veritasQuery. */ router.post("/api/chat", async (req, res) => { try { const { prompt, messages } = req.body ?? {}; // Basic validation: require either prompt or messages 
+  const router = Router();
+
+router.post("/api/chat", async (req, res) => {
+  const { prompt, messages } = req.body;
   try {
-    const userPrompt = String(req.body.prompt || req.query.prompt || '');
-    if (!userPrompt) return res.status(400).json({ error: 'Missing prompt' });
+    const result = await veritasQuery({ prompt, messages });
+    res.json(result);
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+export default router;                                                                                                                                                                                                                  if ((!prompt || String(prompt).trim() === "") && (!Array.isArray(messages) || messages.length === 0)) { return res.status(400).json({ error: "Missing prompt or messages in request body" }); }
 
     const aiResponse = await veritasQuery(userPrompt);
     return res.json({ ok: true, ai: aiResponse });
