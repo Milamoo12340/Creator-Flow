@@ -1,73 +1,17 @@
-// routes.ts
-// Next.js API routes for VERITAS assistant
-
-import { NextRequest, NextResponse } from 'next/server';
-import { veritasAIRequest } from './openai';
-import { StructuredOutputSchema } from './schemas/structuredOutput';
-import { getSession, saveSession } from './memory/sessionManager';
-
-export async function POST(req: NextRequest) {
-  const { sessionId, messages, depth } = await req.json();
-  const session = await getSession(sessionId);
-
-  // Append user message to session
-  session.messages.push(...messages);
-
-  // Call VERITAS AI pipeline
-  const result = await veritasAIRequest(session.messages, {
-    structuredOutput: StructuredOutputSchema,
-    depth,
-  });
-
-  if (result.success) {
-    // Append assistant message to session
-    session.messages.push({ role: 'assistant', content: result.data.content });
-    await saveSession(sessionId, session);
-    return NextResponse.json({ output: result.data, citations: result.data.citations, meta: result.meta });
-  } else {
-    return NextResponse.json({ error: result.error, meta: result.meta }, { status: 500 });
-  }
-}
-// Alternative backend route
-export async function ALTERNATIVE(req: NextRequest) {
-  const { prompt, context, memoryId, userId } = await req.json();
-  try {
-    //const result = await veritasQuery({ prompt, context, memoryId, userId });
-    //return NextResponse.json(result);
-    return NextResponse.json({message: "Alternative Route"}, {status:200})
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
-// routes.ts
-// alternate Backend API Routes for VERITAS
-
-import express from "express";
+import { Router } from "express";
 import { veritasQuery } from "./openai";
-import { manageMemory } from "./memory";
-import { logTrace } from "./observability";
+import { storage } from "./storage";
 
-const router = express.Router();
+const router = Router();
 
 router.post("/api/chat", async (req, res) => {
-  const { prompt, context, memoryId, userId } = req.body;
+  const { prompt, messages } = req.body;
   try {
-    const result = await veritasQuery({ prompt, context, memoryId, userId });
+    const result = await veritasQuery({ prompt, messages });
     res.json(result);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message });
   }
-});
-
-router.get("/api/memory/:userId", async (req, res) => {
-  const { userId } = req.params;
-  const memory = await manageMemory({ userId });
-  res.json({ memory });
-});
-
-router.post("/api/observability", (req, res) => {
-  logTrace(req.body);
-  res.status(204).end();
 });
 
 export default router;
