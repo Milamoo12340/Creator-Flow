@@ -1,3 +1,4 @@
+import axios from "axios";
 import { useState } from "react";
 import { GlitchHeader } from "@/components/GlitchHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +15,20 @@ import { useConfig } from "@/lib/ConfigContext";
 export function ConfigPage() {
   const [trainingStatus, setTrainingStatus] = useState<"IDLE" | "TRAINING" | "COMPLETE">("IDLE");
   const { activeModel, temperature, osintTools, updateConfig, toggleTool, systemPrompt } = useConfig();
+  const [manualApiKey, setManualApiKey] = useState("");
+  const [manualBaseUrl, setManualBaseUrl] = useState("");
+
+  const handleSaveManual = async () => {
+    try {
+      await axios.post("/api/config/manual-integration", {
+        apiKey: manualApiKey,
+        baseUrl: manualBaseUrl
+      });
+      // Trigger a toast or some feedback
+    } catch (err) {
+      console.error("Failed to save manual config", err);
+    }
+  };
 
   const handleTrain = () => {
     setTrainingStatus("TRAINING");
@@ -72,6 +87,8 @@ export function ConfigPage() {
                   <input 
                     type="password"
                     placeholder="sk-..."
+                    value={manualApiKey}
+                    onChange={(e) => setManualApiKey(e.target.value)}
                     className="w-full bg-black/60 border border-primary/30 rounded-md p-2 font-mono text-xs text-foreground focus:outline-none focus:border-primary"
                   />
                 </div>
@@ -80,11 +97,16 @@ export function ConfigPage() {
                   <input 
                     type="text"
                     placeholder="https://api.openai.com/v1"
+                    value={manualBaseUrl}
+                    onChange={(e) => setManualBaseUrl(e.target.value)}
                     className="w-full bg-black/60 border border-primary/30 rounded-md p-2 font-mono text-xs text-foreground focus:outline-none focus:border-primary"
                   />
                 </div>
               </div>
-              <Button className="font-mono bg-primary/20 text-primary hover:bg-primary/30 border border-primary/50">
+              <Button 
+                onClick={handleSaveManual}
+                className="font-mono bg-primary/20 text-primary hover:bg-primary/30 border border-primary/50"
+              >
                 <Save className="w-4 h-4 mr-2" /> SAVE MANUAL OVERRIDES
               </Button>
             </CardContent>

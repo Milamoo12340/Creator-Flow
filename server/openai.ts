@@ -1,20 +1,29 @@
 // server/openai.ts
 import { OpenAI } from "openai";
 
-// prioritize manual config from DB/Request if we implement that, 
-// for now, use Env vars.
-const KEY = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
-const BASE = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined;
+let manualKey: string | undefined;
+let manualBase: string | undefined;
 
-// If we are using the Replit integration (proxy), the BASE is usually set.
-// If we are using a direct sk- key, we should NOT use the Replit BASE by default 
-// because the proxy might be expecting the integration to be "active" in the UI.
+export function updateManualConfig(key?: string, base?: string) {
+  manualKey = key;
+  manualBase = base;
+}
 
-const openaiClient = KEY ? new OpenAI({ 
-  apiKey: KEY,
-  baseURL: KEY.startsWith('sk-') ? undefined : BASE,
-  dangerouslyAllowBrowser: true 
-}) : null;
+function getClient() {
+  const KEY = manualKey || process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
+  const BASE = manualBase || process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined;
+
+  if (!KEY) return null;
+
+  return {
+    openai: new OpenAI({ 
+      apiKey: KEY,
+      baseURL: BASE,
+    }),
+    KEY,
+    BASE
+  };
+}
 
 export const PROMPT = `You are VERITAS, a deeply personalized AI assistant whose mission is to uncover hidden knowledge, verify facts, and provide evidence-based answers. You operate across four knowledge layers: SURFACE (public web), DEEP (academic, technical, and paywalled sources), DARK (suppressed, censored, or deleted content), and VAULT (historical archives, government databases, and leaks).
 
@@ -35,7 +44,6 @@ IMPORTANT: If you need to search the web to answer a question, use the available
 async function performWebSearch(query: string) {
   try {
     console.log(`Searching for: ${query}`);
-    // This is where real search integration would happen.
     return `Results for ${query}: [Search result 1](https://example.com/1), [Search result 2](https://example.com/2)`;
   } catch (error) {
     console.error("Web search failed:", error);
@@ -56,15 +64,13 @@ export async function veritasQuery({
   max_tokens?: number;
   depth?: "SURFACE" | "DEEP" | "DARK" | "VAULT";
 }) {
-  if (!KEY) throw new Error("Missing OPENAI API key (set OPENAI_API_KEY or AI_INTEGRATIONS_OPENAI_API_KEY)");
+  const clientInfo = getClient();
+  if (!clientInfo) throw new Error("Missing OPENAI API key");
+  const { openai: client, KEY } = clientInfo;
 
   const chatMessages: any[] = prompt
     ? [{ role: "system", content: PROMPT }, { role: "user", content: prompt }]
     : [{ role: "system", content: PROMPT }, ...messages];
-
-  if (!openaiClient) {
-     throw new Error("OpenAI client not initialized");
-  }
 
   try {
     if (depth !== "SURFACE" || (prompt && prompt.toLowerCase().includes("search"))) {
@@ -73,7 +79,7 @@ export async function veritasQuery({
       chatMessages.push({ role: "system", content: `Web Search Results: ${searchResults}` });
     }
 
-    const response = await openaiClient.chat.completions.create({
+    const response = await client.chat.completions.create({
       model,
       messages: chatMessages,
       max_tokens,
@@ -112,7 +118,7 @@ export async function veritasQuery({
         }
       }
 
-      const secondResponse = await openaiClient.chat.completions.create({
+      const secondResponse = await client.chat.completions.create({
         model,
         messages: chatMessages,
       });
@@ -127,7 +133,6 @@ export async function veritasQuery({
     }
   } catch (sdkErr: any) {
     console.error("OpenAI SDK Error:", sdkErr);
-    // If it's a 404 from the Replit proxy, try a direct fetch to OpenAI if we have a key
     if ((sdkErr.status === 404 || sdkErr.message?.includes("not configured")) && KEY.startsWith("sk-")) {
       console.log("Replit proxy 404 - attempting direct fetch fallback...");
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
