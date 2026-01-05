@@ -1,6 +1,7 @@
 // server/routes.ts
 import { type Express } from "express";
 import { veritasQuery, updateManualConfig } from "./openai";
+import { logError } from "./monitor";
 
 export default function registerRoutes(app: Express) {
   app.post("/api/config/manual-integration", async (req, res) => {
@@ -9,6 +10,7 @@ export default function registerRoutes(app: Express) {
       updateManualConfig(apiKey, baseUrl);
       res.json({ ok: true });
     } catch (err: any) {
+      logError(err, "manual-config-update");
       res.status(500).json({ error: err.message });
     }
   });
@@ -25,7 +27,7 @@ export default function registerRoutes(app: Express) {
 
       return res.json({ ok: true, result });
     } catch (err: any) {
-      console.error("AI request failed:", err);
+      logError(err, "ai-chat-request");
       return res.status(500).json({ error: `AI request failed: ${err.message || err}` });
     }
   });

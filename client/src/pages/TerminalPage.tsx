@@ -26,18 +26,23 @@ export function TerminalPage() {
         messages: messages.map(m => ({ role: m.role, content: m.text }))
       });
       
+      console.log("Terminal API Response:", data);
+      const resultData = data.result || data;
+
       setMessages((msgs) => [
         ...msgs,
         {
           role: "assistant",
-          text: data.content || data.text || "No response received",
-          citations: data.citations,
+          text: resultData.text || resultData.content || (typeof resultData === 'string' ? resultData : JSON.stringify(resultData)),
+          citations: resultData.citations || resultData.sources,
         },
       ]);
     } catch (err: any) {
+      console.error("Terminal API Error:", err);
+      const errorMessage = err.response?.data?.error || err.response?.data?.message || err.message || "Unknown Error";
       setMessages((msgs) => [
         ...msgs,
-        { role: "assistant", text: "Error: " + (err.response?.data?.message || err.message) },
+        { role: "assistant", text: "[[ SYSTEM ERROR ]]\n" + errorMessage },
       ]);
     } finally {
       setLoading(false);
