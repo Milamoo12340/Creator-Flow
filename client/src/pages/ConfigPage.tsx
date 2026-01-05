@@ -47,7 +47,49 @@ export function ConfigPage() {
           <TabsTrigger value="personality" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary font-mono">
             <Terminal className="w-4 h-4 mr-2" /> PERSONA
           </TabsTrigger>
+          <TabsTrigger value="integrations" className="data-[state=active]:bg-primary/20 data-[state=active]:text-primary font-mono">
+            <Database className="w-4 h-4 mr-2" /> INTEGRATIONS
+          </TabsTrigger>
         </TabsList>
+
+        {/* ... existing content ... */}
+
+        {/* INTEGRATIONS TAB */}
+        <TabsContent value="integrations" className="space-y-6">
+          <Card className="bg-black/40 border-primary/20 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="font-display text-primary flex items-center gap-2">
+                <Database className="w-5 h-5" /> API & Service Integrations
+              </CardTitle>
+              <CardDescription className="font-mono text-xs">
+                Configure manual overrides if Replit native integrations are unavailable.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="font-mono text-xs">OPENAI API KEY (MANUAL)</Label>
+                  <input 
+                    type="password"
+                    placeholder="sk-..."
+                    className="w-full bg-black/60 border border-primary/30 rounded-md p-2 font-mono text-xs text-foreground focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="font-mono text-xs">OPENAI BASE URL</Label>
+                  <input 
+                    type="text"
+                    placeholder="https://api.openai.com/v1"
+                    className="w-full bg-black/60 border border-primary/30 rounded-md p-2 font-mono text-xs text-foreground focus:outline-none focus:border-primary"
+                  />
+                </div>
+              </div>
+              <Button className="font-mono bg-primary/20 text-primary hover:bg-primary/30 border border-primary/50">
+                <Save className="w-4 h-4 mr-2" /> SAVE MANUAL OVERRIDES
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         {/* AI MODELS TAB */}
         <TabsContent value="models" className="space-y-6">

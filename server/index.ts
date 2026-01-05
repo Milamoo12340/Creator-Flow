@@ -63,6 +63,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 registerRoutes(app);
 
+import { monitorAndFix } from "./monitor";
+monitorAndFix();
+
 const httpServer = createServer(app);
 
 // Central error handler
