@@ -11,7 +11,9 @@ export function updateManualConfig(key?: string, base?: string) {
 
 function getClient() {
   const KEY = manualKey || process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
-  const BASE = manualBase || process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined;
+  // If we have a direct sk- key, we should NOT use the Replit BASE by default 
+  // because the proxy returns 404 if the integration isn't "active" in the UI.
+  const BASE = manualBase || (KEY?.startsWith('sk-') ? undefined : process.env.AI_INTEGRATIONS_OPENAI_BASE_URL) || undefined;
 
   if (!KEY) return null;
 
@@ -133,8 +135,10 @@ export async function veritasQuery({
     }
   } catch (sdkErr: any) {
     console.error("OpenAI SDK Error:", sdkErr);
-    if ((sdkErr.status === 404 || sdkErr.message?.includes("not configured")) && KEY.startsWith("sk-")) {
-      console.log("Replit proxy 404 - attempting direct fetch fallback...");
+    // If it's a 404 from the Replit proxy, or if we just want to be safe, 
+    // try a direct fetch to OpenAI if we have a key that looks like a direct key
+    if (KEY.startsWith("sk-")) {
+      console.log("Attempting direct fetch fallback to OpenAI API...");
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -151,6 +155,9 @@ export async function veritasQuery({
         const data: any = await res.json();
         const content = data.choices?.[0]?.message?.content ?? "";
         try { return JSON.parse(content || "{}"); } catch { return { text: content }; }
+      } else {
+        const errText = await res.text();
+        console.error("Direct fetch failed:", errText);
       }
     }
     throw new Error(`AI request failed: ${sdkErr.message || sdkErr}`);
