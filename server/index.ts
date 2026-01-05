@@ -1,6 +1,6 @@
 // server/index.ts
 import express, { type Request, Response, NextFunction } from "express";
-import chatRouter from "./routes";
+import registerRoutes from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import crypto from "crypto";
@@ -10,7 +10,7 @@ const app = express();
 app.use(express.json());
 
 // Attach a unique request ID to each incoming request
-app.use((req: Request & { requestId?: string }, _res, next) => {
+app.use((req: Request, _res: Response, next: NextFunction) => {
   (req as any).requestId = crypto.randomBytes(8).toString("hex");
   next();
 });
@@ -18,7 +18,7 @@ app.use((req: Request & { requestId?: string }, _res, next) => {
 // Capture raw body for webhook-style endpoints if needed
 app.use(
   express.json({
-    verify: (req: any, _res, buf: Buffer) => {
+    verify: (req: any, _res: Response, buf: Buffer) => {
       req.rawBody = buf;
     },
   }),
@@ -38,7 +38,7 @@ export function log(message: string, source = "express") {
 }
 
 // Logging middleware for API requests
-app.use((req, res, next) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
   const path = req.path;
   let capturedJsonResponse: Record<string, any> | undefined;
@@ -66,7 +66,7 @@ app.use((req, res, next) => {
 });
 
 // Mount application routers
-app.use(chatRouter);
+registerRoutes(app);
 
 const httpServer = createServer(app);
 

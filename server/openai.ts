@@ -29,7 +29,7 @@ IMPORTANT: If you need to search the web to answer a question, use the available
 async function performWebSearch(query: string) {
   try {
     // This is a placeholder for actual web search logic using a Replit integration or external API
-    // For now, we'll simulate it, but we should use a real search tool if available.
+    // In a real scenario, this would call a search API.
     console.log(`Searching for: ${query}`);
     return `Results for ${query}: [Search result 1](https://example.com/1), [Search result 2](https://example.com/2)`;
   } catch (error) {

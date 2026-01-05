@@ -1,25 +1,6 @@
 // client/src/lib/mockData.ts
 // Mock Data Fixtures for VERITAS Testing (browser-safe)
 
-import { generateVeritasResponse } from "./openai";
-
-export async function getTieredTopic(topic: string) {
-  return {
-    id: topic.toLowerCase(),
-    topic,
-    layers: {
-      SURFACE: await generateVeritasResponse(`Overview of ${topic}`, "SURFACE"),
-      DEEP: await generateVeritasResponse(`Declassified details about ${topic}`, "DEEP"),
-      DARK: await generateVeritasResponse(`Suppressed info about ${topic}`, "DARK"),
-      VAULT: await generateVeritasResponse(`Classified insights about ${topic}`, "VAULT"),
-    },
-  };
-}
-
-export async function getTerminalResponse(prompt: string) {
-  return await generateVeritasResponse(prompt, "SURFACE");
-}
-
 export const mockDocuments = [
   { id: "DOC-001", title: "Quantum Consciousness Project", date: "2024-11-12", clearance: "TOP SECRET", summary: "Preliminary findings on the integration of neural networks with quantum processing units for enhanced cognitive modeling.", tags: ["Quantum","Neural","AI"] },
   { id: "DOC-002", title: "Project Nightingale: Status Report", date: "2025-01-05", clearance: "RESTRICTED", summary: "Investigation into decentralized autonomous systems operating within public grid infrastructure.", tags: ["Decentralized","Infrastructure"] },
