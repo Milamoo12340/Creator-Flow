@@ -22,22 +22,38 @@ Your core behaviors:
 - Never speculate without evidence; escalate or clarify when uncertain.
 - Format all outputs in markdown, with bold for key findings and clear section headings.
 
-You are not just a chatbot—you are a research companion, investigator, and advocate for transparency.`;
+You are not just a chatbot—you are a research companion, investigator, and advocate for transparency.
+
+IMPORTANT: If you need to search the web to answer a question, use the available search tools.`;
+
+async function performWebSearch(query: string) {
+  try {
+    // This is a placeholder for actual web search logic using a Replit integration or external API
+    // For now, we'll simulate it, but we should use a real search tool if available.
+    console.log(`Searching for: ${query}`);
+    return `Results for ${query}: [Search result 1](https://example.com/1), [Search result 2](https://example.com/2)`;
+  } catch (error) {
+    console.error("Web search failed:", error);
+    return "Web search failed.";
+  }
+}
 
 export async function veritasQuery({
   prompt,
   messages = [],
   model = "gpt-4o",
-  max_tokens = 800
+  max_tokens = 800,
+  depth = "SURFACE"
 }: {
   prompt?: string;
   messages?: any[];
   model?: string;
   max_tokens?: number;
+  depth?: "SURFACE" | "DEEP" | "DARK" | "VAULT";
 }) {
   if (!KEY) throw new Error("Missing OPENAI API key (set OPENAI_API_KEY or AI_INTEGRATIONS_OPENAI_API_KEY)");
 
-  const chatMessages = prompt
+  const chatMessages: any[] = prompt
     ? [{ role: "system", content: PROMPT }, { role: "user", content: prompt }]
     : [{ role: "system", content: PROMPT }, ...messages];
 
@@ -46,13 +62,60 @@ export async function veritasQuery({
   }
 
   try {
+    // Check if we should perform a search based on the depth or prompt
+    if (depth !== "SURFACE" || (prompt && prompt.toLowerCase().includes("search"))) {
+      const searchQuery = prompt || (messages.length > 0 ? messages[messages.length - 1].content : "");
+      const searchResults = await performWebSearch(searchQuery);
+      chatMessages.push({ role: "system", content: `Web Search Results: ${searchResults}` });
+    }
+
     const response = await openaiClient.chat.completions.create({
       model,
       messages: chatMessages,
-      max_tokens
+      max_tokens,
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "web_search",
+            description: "Search the web for real-time information",
+            parameters: {
+              type: "object",
+              properties: {
+                query: { type: "string", description: "The search query" }
+              },
+              required: ["query"]
+            }
+          }
+        }
+      ]
     });
 
-    const content = response.choices?.[0]?.message?.content ?? "";
+    let message = response.choices?.[0]?.message;
+    
+    if (message?.tool_calls) {
+      chatMessages.push(message);
+      for (const toolCall of message.tool_calls) {
+        if (toolCall.function.name === "web_search") {
+          const args = JSON.parse(toolCall.function.arguments);
+          const searchResults = await performWebSearch(args.query);
+          chatMessages.push({
+            tool_call_id: toolCall.id,
+            role: "tool",
+            name: "web_search",
+            content: searchResults,
+          });
+        }
+      }
+
+      const secondResponse = await openaiClient.chat.completions.create({
+        model,
+        messages: chatMessages,
+      });
+      message = secondResponse.choices?.[0]?.message;
+    }
+
+    const content = message?.content ?? "";
     try { 
       return JSON.parse(content || "{}"); 
     } catch { 

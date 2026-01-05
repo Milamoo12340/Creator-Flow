@@ -6,13 +6,13 @@ const router = express.Router();
 
 router.post("/api/chat", async (req, res) => {
   try {
-    const { prompt, messages } = req.body ?? {};
+    const { prompt, messages, depth } = req.body ?? {};
 
     if ((!prompt || String(prompt).trim() === "") && (!Array.isArray(messages) || messages.length === 0)) {
       return res.status(400).json({ error: "Missing prompt or messages in request body" });
     }
 
-    const result = await veritasQuery({ prompt, messages });
+    const result = await veritasQuery({ prompt, messages, depth });
 
     return res.json({ ok: true, result });
   } catch (err: any) {
