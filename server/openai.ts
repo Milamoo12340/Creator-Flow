@@ -100,7 +100,7 @@ export async function veritasQuery({
     if (message?.tool_calls) {
       chatMessages.push(message);
       for (const toolCall of message.tool_calls) {
-        if (toolCall.function.name === "web_search") {
+        if (toolCall.type === 'function' && toolCall.function.name === "web_search") {
           const args = JSON.parse(toolCall.function.arguments);
           const searchResults = await performWebSearch(args.query);
           chatMessages.push({
