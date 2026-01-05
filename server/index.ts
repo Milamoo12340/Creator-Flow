@@ -4,18 +4,16 @@ import registerRoutes from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import crypto from "crypto";
-import "dotenv/config"; // loads .env in development
+import "dotenv/config";
 
 const app = express();
 app.use(express.json());
 
-// Attach a unique request ID to each incoming request
 app.use((req: Request, _res: Response, next: NextFunction) => {
   (req as any).requestId = crypto.randomBytes(8).toString("hex");
   next();
 });
 
-// Capture raw body for webhook-style endpoints if needed
 app.use(
   express.json({
     verify: (req: any, _res: Response, buf: Buffer) => {
@@ -26,7 +24,6 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
-// Logging helper
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -37,7 +34,6 @@ export function log(message: string, source = "express") {
   console.log(`${formattedTime} [${source}] ${message}`);
 }
 
-// Logging middleware for API requests
 app.use((req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
   const path = req.path;
@@ -65,12 +61,11 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-// Mount application routers
 registerRoutes(app);
 
 const httpServer = createServer(app);
 
-// Central error handler (register after routes)
+// Central error handler
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   const status = err.status || err.statusCode || 500;
   const message = err.message || "Internal Server Error";
@@ -78,7 +73,6 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   res.status(status).json({ message });
 });
 
-// Vite / static setup
 (async () => {
   if (app.get("env") === "production") {
     serveStatic(app);

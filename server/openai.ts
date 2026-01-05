@@ -1,14 +1,22 @@
 // server/openai.ts
 import { OpenAI } from "openai";
 
+// Prioritize direct OpenAI key if available, otherwise fall back to Replit integration keys
 const KEY = process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+// If using direct OPENAI_API_KEY, we might not want the Replit BASE URL if it's set to a proxy that requires integration
 const BASE = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined;
 
 if (!KEY) {
   console.warn("Warning: OPENAI API key not set. AI requests will fail.");
 }
 
-const openaiClient = KEY ? new OpenAI({ apiKey: KEY, baseURL: BASE }) : null;
+// Initialize client. If BASE is present but KEY is a direct OpenAI key, 
+// the proxy might return 404 if the project isn't "configured" in the Replit UI.
+// We'll try to be smart: if it's a standard sk- project key, maybe don't use the Replit BASE by default unless explicitly needed.
+const openaiClient = KEY ? new OpenAI({ 
+  apiKey: KEY, 
+  baseURL: KEY.startsWith('sk-') ? undefined : BASE 
+}) : null;
 
 export const PROMPT = `You are VERITAS, a deeply personalized AI assistant whose mission is to uncover hidden knowledge, verify facts, and provide evidence-based answers. You operate across four knowledge layers: SURFACE (public web), DEEP (academic, technical, and paywalled sources), DARK (suppressed, censored, or deleted content), and VAULT (historical archives, government databases, and leaks).
 
@@ -28,9 +36,8 @@ IMPORTANT: If you need to search the web to answer a question, use the available
 
 async function performWebSearch(query: string) {
   try {
-    // This is a placeholder for actual web search logic using a Replit integration or external API
-    // In a real scenario, this would call a search API.
     console.log(`Searching for: ${query}`);
+    // This is where real search integration would happen.
     return `Results for ${query}: [Search result 1](https://example.com/1), [Search result 2](https://example.com/2)`;
   } catch (error) {
     console.error("Web search failed:", error);
@@ -62,7 +69,6 @@ export async function veritasQuery({
   }
 
   try {
-    // Check if we should perform a search based on the depth or prompt
     if (depth !== "SURFACE" || (prompt && prompt.toLowerCase().includes("search"))) {
       const searchQuery = prompt || (messages.length > 0 ? messages[messages.length - 1].content : "");
       const searchResults = await performWebSearch(searchQuery);
@@ -123,6 +129,27 @@ export async function veritasQuery({
     }
   } catch (sdkErr: any) {
     console.error("OpenAI SDK Error:", sdkErr);
+    // If it's a 404 from the Replit proxy, try a direct fetch to OpenAI if we have a key
+    if ((sdkErr.status === 404 || sdkErr.message?.includes("not configured")) && KEY.startsWith("sk-")) {
+      console.log("Replit proxy 404 - attempting direct fetch fallback...");
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${KEY}`
+        },
+        body: JSON.stringify({
+          model,
+          messages: chatMessages,
+          max_tokens
+        })
+      });
+      if (res.ok) {
+        const data: any = await res.json();
+        const content = data.choices?.[0]?.message?.content ?? "";
+        try { return JSON.parse(content || "{}"); } catch { return { text: content }; }
+      }
+    }
     throw new Error(`AI request failed: ${sdkErr.message || sdkErr}`);
   }
 }
