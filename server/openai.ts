@@ -1,21 +1,19 @@
 // server/openai.ts
 import { OpenAI } from "openai";
 
-// Prioritize direct OpenAI key if available, otherwise fall back to Replit integration keys
-const KEY = process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
-// If using direct OPENAI_API_KEY, we might not want the Replit BASE URL if it's set to a proxy that requires integration
+// prioritize manual config from DB/Request if we implement that, 
+// for now, use Env vars.
+const KEY = process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
 const BASE = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined;
 
-if (!KEY) {
-  console.warn("Warning: OPENAI API key not set. AI requests will fail.");
-}
+// If we are using the Replit integration (proxy), the BASE is usually set.
+// If we are using a direct sk- key, we should NOT use the Replit BASE by default 
+// because the proxy might be expecting the integration to be "active" in the UI.
 
-// Initialize client. If BASE is present but KEY is a direct OpenAI key, 
-// the proxy might return 404 if the project isn't "configured" in the Replit UI.
-// We'll try to be smart: if it's a standard sk- project key, maybe don't use the Replit BASE by default unless explicitly needed.
 const openaiClient = KEY ? new OpenAI({ 
-  apiKey: KEY, 
-  baseURL: KEY.startsWith('sk-') ? undefined : BASE 
+  apiKey: KEY,
+  baseURL: KEY.startsWith('sk-') ? undefined : BASE,
+  dangerouslyAllowBrowser: true 
 }) : null;
 
 export const PROMPT = `You are VERITAS, a deeply personalized AI assistant whose mission is to uncover hidden knowledge, verify facts, and provide evidence-based answers. You operate across four knowledge layers: SURFACE (public web), DEEP (academic, technical, and paywalled sources), DARK (suppressed, censored, or deleted content), and VAULT (historical archives, government databases, and leaks).
