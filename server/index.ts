@@ -1,34 +1,24 @@
+// server/index.ts
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
+import chatRouter from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import crypto from "crypto";
-import 'dotenv/config'; // or: import dotenv from 'dotenv'; dotenv.config();
-import express from "express";
-import { registerRoutes } from "./routes";
+import "dotenv/config"; // loads .env in development
 
 const app = express();
 app.use(express.json());
-await registerRoutes(app);
-
-const httpServer = createServer(app);
-
-declare module "http" {
-  interface IncomingMessage {
-    rawBody: Buffer;
-    requestId?: string;
-  }
-}
 
 // Attach a unique request ID to each incoming request
-app.use((req, _res, next) => {
-  req.requestId = crypto.randomBytes(8).toString("hex");
+app.use((req: Request & { requestId?: string }, _res, next) => {
+  (req as any).requestId = crypto.randomBytes(8).toString("hex");
   next();
 });
 
+// Capture raw body for webhook-style endpoints if needed
 app.use(
   express.json({
-    verify: (req, _res, buf) => {
+    verify: (req: any, _res, buf: Buffer) => {
       req.rawBody = buf;
     },
   }),
@@ -36,6 +26,7 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 
+// Logging helper
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -53,7 +44,7 @@ app.use((req, res, next) => {
   let capturedJsonResponse: Record<string, any> | undefined;
 
   const originalResJson = res.json.bind(res);
-  res.json = (bodyJson, ...args) => {
+  res.json = (bodyJson: any, ...args: any[]) => {
     capturedJsonResponse = bodyJson;
     return originalResJson(bodyJson, ...args);
   };
@@ -61,9 +52,9 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms [req:${req.requestId}]`;
+      const requestId = (req as any).requestId ?? "unknown";
+      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms [req:${requestId}]`;
       if (capturedJsonResponse) {
-        // Only log a summary if response is large
         const preview = JSON.stringify(capturedJsonResponse).slice(0, 300);
         logLine += ` :: ${preview}${preview.length >= 300 ? "..." : ""}`;
       }
@@ -74,19 +65,21 @@ app.use((req, res, next) => {
   next();
 });
 
+// Mount application routers
+app.use(chatRouter);
+
+const httpServer = createServer(app);
+
+// Central error handler (register after routes)
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || "Internal Server Error";
+  log(`Error ${status}: ${message}`, "server");
+  res.status(status).json({ message });
+});
+
+// Vite / static setup
 (async () => {
-  await registerRoutes(httpServer, app);
-
-  // Central error handler
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-    log(`Error ${status}: ${message}`, "server");
-    res.status(status).json({ message });
-    // don’t rethrow here, just log
-  });
-
-  // Only setup vite in development
   if (app.get("env") === "production") {
     serveStatic(app);
   } else {
