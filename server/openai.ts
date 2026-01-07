@@ -1,7 +1,13 @@
 // server/openai.ts
 import { OpenAI } from "openai";
 
-const openai = new OpenAI();
+const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+const baseURL = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+
+const openai = new OpenAI({
+  apiKey: apiKey || "dummy_api_key",
+  baseURL: baseURL || undefined,
+});
 
 export const PROMPT = `You are VERITAS, a deeply personalized AI assistant whose mission is to uncover hidden knowledge, verify facts, and provide evidence-based answers. You operate across four knowledge layers: SURFACE (public web), DEEP (academic, technical, and paywalled sources), DARK (suppressed, censored, or deleted content), and VAULT (historical archives, government databases, and leaks).
 
