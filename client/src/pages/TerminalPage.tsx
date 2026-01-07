@@ -3,7 +3,8 @@ import axios from "axios";
 import { useConfig } from "../lib/ConfigContext";
 
 export function TerminalPage() {
-  const { config, updateConfig } = useConfig();
+  const configContext = useConfig();
+  const { activeModel, systemPrompt, updateConfig } = configContext;
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -53,8 +54,8 @@ export function TerminalPage() {
       const { data } = await axios.post("/api/chat", {
         prompt: currentInput,
         messages: messages.map(m => ({ role: m.role, content: m.text })),
-        systemPrompt: config.systemPrompt,
-        model: config.activeModel
+        systemPrompt: systemPrompt,
+        model: activeModel
       });
       
       console.log("Terminal API Response:", data);
@@ -113,7 +114,7 @@ export function TerminalPage() {
         <div className="mb-6 border border-green-500/30 p-4 bg-green-500/5 rounded">
           <label className="block text-[10px] uppercase tracking-tighter mb-2 opacity-50">Core Personality / System Logic</label>
           <textarea 
-            value={config.systemPrompt}
+            value={systemPrompt}
             onChange={(e) => updateConfig({ systemPrompt: e.target.value })}
             className="w-full h-32 bg-black/50 border border-green-900 text-green-500 text-xs p-2 outline-none focus:border-green-500"
           />
@@ -121,7 +122,7 @@ export function TerminalPage() {
             <div className="flex-1">
               <label className="text-[10px] uppercase opacity-50 block mb-1">Active Model</label>
               <select 
-                value={config.activeModel}
+                value={activeModel}
                 onChange={(e) => updateConfig({ activeModel: e.target.value })}
                 className="bg-black border border-green-900 text-green-500 text-[10px] p-1 w-full"
               >
