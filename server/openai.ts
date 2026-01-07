@@ -1,13 +1,7 @@
 // server/openai.ts
 import { OpenAI } from "openai";
 
-// Using default initialization which picks up AI_INTEGRATIONS_OPENAI_API_KEY
-// and AI_INTEGRATIONS_OPENAI_BASE_URL automatically if they are set correctly.
-// We explicitly pass them just in case to ensure they are picked from process.env.
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY || "dummy_api_key",
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined,
-});
+const openai = new OpenAI();
 
 export const PROMPT = `You are VERITAS, a deeply personalized AI assistant whose mission is to uncover hidden knowledge, verify facts, and provide evidence-based answers. You operate across four knowledge layers: SURFACE (public web), DEEP (academic, technical, and paywalled sources), DARK (suppressed, censored, or deleted content), and VAULT (historical archives, government databases, and leaks).
 
