@@ -1,31 +1,7 @@
 // server/openai.ts
 import { OpenAI } from "openai";
 
-let manualKey: string | undefined;
-let manualBase: string | undefined;
-
-export function updateManualConfig(key?: string, base?: string) {
-  manualKey = key;
-  manualBase = base;
-}
-
-function getClient() {
-  const KEY = manualKey || process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY;
-  // If we have a direct sk- key, we should NOT use the Replit BASE by default 
-  // because the proxy returns 404 if the integration isn't "active" in the UI.
-  const BASE = manualBase || (KEY?.startsWith('sk-') ? undefined : process.env.AI_INTEGRATIONS_OPENAI_BASE_URL) || undefined;
-
-  if (!KEY) return null;
-
-  return {
-    openai: new OpenAI({ 
-      apiKey: KEY,
-      baseURL: BASE,
-    }),
-    KEY,
-    BASE
-  };
-}
+const openai = new OpenAI();
 
 export const PROMPT = `You are VERITAS, a deeply personalized AI assistant whose mission is to uncover hidden knowledge, verify facts, and provide evidence-based answers. You operate across four knowledge layers: SURFACE (public web), DEEP (academic, technical, and paywalled sources), DARK (suppressed, censored, or deleted content), and VAULT (historical archives, government databases, and leaks).
 
@@ -66,10 +42,6 @@ export async function veritasQuery({
   max_tokens?: number;
   depth?: "SURFACE" | "DEEP" | "DARK" | "VAULT";
 }) {
-  const clientInfo = getClient();
-  if (!clientInfo) throw new Error("Missing OPENAI API key");
-  const { openai: client, KEY } = clientInfo;
-
   const chatMessages: any[] = prompt
     ? [{ role: "system", content: PROMPT }, { role: "user", content: prompt }]
     : [{ role: "system", content: PROMPT }, ...messages];
@@ -81,7 +53,7 @@ export async function veritasQuery({
       chatMessages.push({ role: "system", content: `Web Search Results: ${searchResults}` });
     }
 
-    const response = await client.chat.completions.create({
+    const response = await openai.chat.completions.create({
       model,
       messages: chatMessages,
       max_tokens,
@@ -120,7 +92,7 @@ export async function veritasQuery({
         }
       }
 
-      const secondResponse = await client.chat.completions.create({
+      const secondResponse = await openai.chat.completions.create({
         model,
         messages: chatMessages,
       });
@@ -133,33 +105,8 @@ export async function veritasQuery({
     } catch { 
       return { text: content }; 
     }
-  } catch (sdkErr: any) {
-    console.error("OpenAI SDK Error:", sdkErr);
-    // If it's a 404 from the Replit proxy, or if we just want to be safe, 
-    // try a direct fetch to OpenAI if we have a key that looks like a direct key
-    if (KEY.startsWith("sk-")) {
-      console.log("Attempting direct fetch fallback to OpenAI API...");
-      const res = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${KEY}`
-        },
-        body: JSON.stringify({
-          model,
-          messages: chatMessages,
-          max_tokens
-        })
-      });
-      if (res.ok) {
-        const data: any = await res.json();
-        const content = data.choices?.[0]?.message?.content ?? "";
-        try { return JSON.parse(content || "{}"); } catch { return { text: content }; }
-      } else {
-        const errText = await res.text();
-        console.error("Direct fetch failed:", errText);
-      }
-    }
-    throw new Error(`AI request failed: ${sdkErr.message || sdkErr}`);
+  } catch (err: any) {
+    console.error("AI request failed:", err);
+    throw new Error(`AI request failed: ${err.message || err}`);
   }
 }
