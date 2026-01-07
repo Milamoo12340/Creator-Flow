@@ -27,11 +27,27 @@ export function NetworkPage() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      // Rotate logs to simulate live feed
+      // Rotate logs to simulate live feed and inject actual search terms if available
       setLogs(prev => {
         const newLogs = [...prev];
+        const lastChat = localStorage.getItem("veritas_chat_history");
+        let latestQuery = "";
+        if (lastChat) {
+          try {
+            const history = JSON.parse(lastChat);
+            const lastUserMsg = history.filter((m: any) => m.role === 'user').pop();
+            if (lastUserMsg) latestQuery = lastUserMsg.text;
+          } catch (e) {}
+        }
+
         const first = newLogs.shift();
-        if (first) newLogs.push(first);
+        if (first) {
+          if (latestQuery && Math.random() > 0.7) {
+             first.action = `Deep Analysis: ${latestQuery.substring(0, 20)}...`;
+             first.status = "ACTIVE";
+          }
+          newLogs.push(first);
+        }
         return newLogs;
       });
     }, 2000);

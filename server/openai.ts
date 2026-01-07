@@ -55,17 +55,20 @@ export async function veritasQuery({
   messages = [],
   model = "gpt-4o",
   max_tokens = 4000,
-  depth = "SURFACE"
+  depth = "SURFACE",
+  systemPrompt
 }: {
   prompt?: string;
   messages?: any[];
   model?: string;
   max_tokens?: number;
   depth?: "SURFACE" | "DEEP" | "DARK" | "VAULT";
+  systemPrompt?: string;
 }) {
+  const finalSystemPrompt = systemPrompt || PROMPT;
   const chatMessages: any[] = prompt
-    ? [{ role: "system", content: PROMPT }, { role: "user", content: prompt }]
-    : [{ role: "system", content: PROMPT }, ...messages];
+    ? [{ role: "system", content: finalSystemPrompt }, { role: "user", content: prompt }]
+    : [{ role: "system", content: finalSystemPrompt }, ...messages];
 
   try {
     if (depth !== "SURFACE" || (prompt && prompt.toLowerCase().includes("search"))) {
