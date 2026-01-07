@@ -9,7 +9,37 @@ export function TerminalPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPersonality, setShowPersonality] = useState(false);
+  const [isCloaked, setIsCloaked] = useState(false);
+  const [securityStatus, setSecurityStatus] = useState("VULNERABLE");
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem("veritas_cloaked");
+      if (saved === "true") setIsCloaked(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isCloaked) {
+      setSecurityStatus("CLOAKED");
+      const interval = setInterval(() => {
+        const fingerprints = ["CHROME-99-WIN", "FIREFOX-88-LINUX", "SAFARI-15-MAC", "TOR-BROWSER-11"];
+        console.log(`[VERITAS] Rotating fingerprint to: ${fingerprints[Math.floor(Math.random() * fingerprints.length)]}`);
+      }, 5000);
+      return () => clearInterval(interval);
+    } else {
+      setSecurityStatus(messages.length > 5 ? "MONITORED" : "VULNERABLE");
+    }
+  }, [isCloaked, messages]);
+
+  const toggleCloaking = () => {
+    const nextState = !isCloaked;
+    setIsCloaked(nextState);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem("veritas_cloaked", nextState.toString());
+    }
+  };
 
   // Load history
   useEffect(() => {
@@ -94,11 +124,22 @@ export function TerminalPage() {
       <header className="mb-8 border-b border-green-900 pb-4 flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold">VERITAS: Truth-Seeking AI Assistant</h1>
-          <p className="text-green-700 text-sm">
-            <strong>Mission:</strong> Uncover hidden knowledge, cite evidence, and dig through layers of information.
-          </p>
+          <div className="flex items-center gap-2 mt-1">
+            <span className={`text-[10px] px-1 border ${isCloaked ? 'border-blue-500 text-blue-500' : 'border-red-900 text-red-900'} font-bold`}>
+              STATUS: {securityStatus}
+            </span>
+            <p className="text-green-700 text-sm">
+              <strong>Mission:</strong> Uncover hidden knowledge, cite evidence, and dig through layers of information.
+            </p>
+          </div>
         </div>
         <div className="flex gap-4">
+          <button 
+            onClick={toggleCloaking}
+            className={`text-[10px] border px-2 py-1 transition-colors ${isCloaked ? 'border-blue-500 text-blue-500 bg-blue-500/10' : 'border-green-900 text-green-700 hover:bg-green-900/20'}`}
+          >
+            {isCloaked ? "CLOAKING: ON" : "ACTIVATE CLOAK"}
+          </button>
           <button 
             onClick={() => setShowPersonality(!showPersonality)}
             className="text-[10px] border border-green-900 px-2 py-1 hover:bg-green-900/20"

@@ -23,9 +23,16 @@ export function NetworkPage() {
   });
 
   const [logs, setLogs] = useState(toolLogs);
+  const [isCloaked, setIsCloaked] = useState(false);
 
   useEffect(() => {
+    const saved = localStorage.getItem("veritas_cloaked");
+    setIsCloaked(saved === "true");
+    
     const interval = setInterval(() => {
+      const currentCloak = localStorage.getItem("veritas_cloaked") === "true";
+      setIsCloaked(currentCloak);
+
       setStats(prev => {
         const lastChat = localStorage.getItem("veritas_chat_history");
         let queryLength = 0;
@@ -36,18 +43,22 @@ export function NetworkPage() {
           } catch (e) {}
         }
 
-        const newTraffic = (44.2 + (Math.random() * 5 * (1 + queryLength / 10))).toFixed(1);
-        const newNodes = Math.floor(1400 + Math.random() * 100 + (queryLength * 5));
+        const baseTraffic = currentCloak ? 0.5 : 44.2;
+        const newTraffic = (baseTraffic + (Math.random() * 2 * (1 + queryLength / 10))).toFixed(1);
+        const newNodes = currentCloak ? Math.floor(Math.random() * 10) : Math.floor(1400 + Math.random() * 100 + (queryLength * 5));
         
-        let threat = "STABLE";
-        let color = "text-primary";
-        if (queryLength > 10) {
-          threat = "ELEVATED";
-          color = "text-yellow-500";
-        }
-        if (queryLength > 20) {
-          threat = "CRITICAL";
-          color = "text-red-500";
+        let threat = currentCloak ? "HIDDEN" : "STABLE";
+        let color = currentCloak ? "text-blue-400" : "text-primary";
+        
+        if (!currentCloak) {
+          if (queryLength > 10) {
+            threat = "ELEVATED";
+            color = "text-yellow-500";
+          }
+          if (queryLength > 20) {
+            threat = "CRITICAL";
+            color = "text-red-500";
+          }
         }
 
         return {
@@ -120,7 +131,7 @@ export function NetworkPage() {
            </div>
         </div>
 
-        <div className="flex-1 border border-primary/20 rounded-md bg-black/40 backdrop-blur-sm relative overflow-hidden">
+        <div className={`flex-1 border border-primary/20 rounded-md bg-black/40 backdrop-blur-sm relative overflow-hidden transition-opacity duration-1000 ${isCloaked ? 'opacity-10' : 'opacity-100'}`}>
            <div className="absolute top-4 right-4 z-20">
                <div className="flex flex-col gap-1 text-[10px] font-mono text-primary text-right">
                    <span>NODES_ACTIVE: {stats.nodes}</span>
