@@ -176,7 +176,17 @@ export function TerminalPage() {
                 <option value="o1">o1 (Deep Reasoning)</option>
               </select>
             </div>
-            <div className="text-[10px] text-green-900 mt-4 italic">Changes saved to local memory</div>
+            <div className="flex flex-col gap-2">
+              <button 
+                onClick={() => {
+                  setShowPersonality(false);
+                }}
+                className="text-[10px] border border-green-500 text-green-500 px-4 py-1 hover:bg-green-500/20 font-bold uppercase tracking-widest"
+              >
+                SAVE CORE
+              </button>
+              <div className="text-[8px] text-green-900 italic text-right">Instant Persistence</div>
+            </div>
           </div>
         </div>
       )}

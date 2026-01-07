@@ -42,10 +42,12 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       updateConfig: (updates) => {
         setConfig((curr) => {
           const next = { ...curr, ...updates };
-          localStorage.setItem("veritas_config", JSON.stringify({
-            activeModel: next.activeModel,
-            systemPrompt: next.systemPrompt
-          }));
+          if (typeof window !== 'undefined') {
+            localStorage.setItem("veritas_config", JSON.stringify({
+              activeModel: next.activeModel,
+              systemPrompt: next.systemPrompt
+            }));
+          }
           return next;
         });
       },
