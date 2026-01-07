@@ -44,7 +44,9 @@ export function TerminalPage() {
     setLoading(true);
     setMessages((msgs) => {
       const next = [...msgs, userMsg];
-      localStorage.setItem("veritas_chat_history", JSON.stringify(next));
+      if (typeof window !== 'undefined') {
+        localStorage.setItem("veritas_chat_history", JSON.stringify(next));
+      }
       return next;
     });
     const currentInput = input;
@@ -70,7 +72,9 @@ export function TerminalPage() {
             citations: resultData.citations || resultData.sources,
           },
         ];
-        localStorage.setItem("veritas_chat_history", JSON.stringify(next));
+        if (typeof window !== 'undefined') {
+          localStorage.setItem("veritas_chat_history", JSON.stringify(next));
+        }
         return next;
       });
     } catch (err: any) {
