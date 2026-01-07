@@ -171,9 +171,15 @@ export function TerminalPage() {
                 onChange={(e) => updateConfig({ activeModel: e.target.value })}
                 className="bg-black border border-green-900 text-green-500 text-[10px] p-1 w-full"
               >
-                <option value="gpt-4o">GPT-4o (Standard)</option>
-                <option value="gpt-4o-mini">GPT-4o Mini (Fast)</option>
-                <option value="o1">o1 (Deep Reasoning)</option>
+                <optgroup label="Supported Models">
+                  <option value="gpt-4o">GPT-4o (Standard)</option>
+                  <option value="gpt-4o-mini">GPT-4o Mini (Fast)</option>
+                  <option value="o1">o1 (Deep Reasoning)</option>
+                </optgroup>
+                <optgroup label="External (Coming Soon)">
+                  <option value="huggingface" disabled>HuggingFace Spaces</option>
+                  <option value="ollama" disabled>Local Ollama</option>
+                </optgroup>
               </select>
             </div>
             <div className="flex flex-col gap-2">

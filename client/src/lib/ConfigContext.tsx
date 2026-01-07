@@ -36,21 +36,23 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     };
   });
 
+  const updateConfig = (updates: Partial<ConfigContextType>) => {
+    setConfig((curr) => {
+      const next = { ...curr, ...updates };
+      if (typeof window !== 'undefined') {
+        localStorage.setItem("veritas_config", JSON.stringify({
+          activeModel: next.activeModel,
+          systemPrompt: next.systemPrompt
+        }));
+      }
+      return next;
+    });
+  };
+
   useEffect(() => {
     setConfig(prev => ({
       ...prev,
-      updateConfig: (updates) => {
-        setConfig((curr) => {
-          const next = { ...curr, ...updates };
-          if (typeof window !== 'undefined') {
-            localStorage.setItem("veritas_config", JSON.stringify({
-              activeModel: next.activeModel,
-              systemPrompt: next.systemPrompt
-            }));
-          }
-          return next;
-        });
-      },
+      updateConfig,
       toggleTool: (tool) => {
         setConfig((curr) => ({
           ...curr,
@@ -61,6 +63,20 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
         }));
       },
     }));
+  }, []);
+
+  useEffect(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem("veritas_config") : null;
+    if (saved) {
+      try {
+        const initial = JSON.parse(saved);
+        const validModels = ["gpt-4o", "gpt-4o-mini", "o1"];
+        if (initial.activeModel && !validModels.includes(initial.activeModel)) {
+          console.warn(`[VERITAS] Invalid model "${initial.activeModel}" detected. Reverting to gpt-4o.`);
+          updateConfig({ activeModel: "gpt-4o" });
+        }
+      } catch (e) {}
+    }
   }, []);
 
   return (
