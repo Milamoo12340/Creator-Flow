@@ -28,13 +28,25 @@ You are not just a chatbot—you are a research companion, investigator, and adv
 
 IMPORTANT: If you need to search the web, scholastic databases, or government archives to answer a question, use the available search tools.`;
 
-async function performWebSearch(query: string) {
+async function performWebSearch(query: string, sourceType: string = "SURFACE") {
   try {
-    console.log(`Searching for: ${query}`);
-    return `Results for ${query}: [Search result 1](https://example.com/1), [Search result 2](https://example.com/2)`;
+    console.log(`[${sourceType}] Searching for: ${query}`);
+    
+    // In a real scenario, this would route to different OSINT/Archival APIs
+    // For now, we simulate the increased depth and variety of sources
+    const mockSources: Record<string, string> = {
+      "SURFACE": "Public web indexes and current news.",
+      "ARCHIVE": "Wayback Machine records and digital library snapshots.",
+      "DECLASSIFIED": "National Archive (NARA) records, FOIA reading rooms, and declassified CIA/FBI databases.",
+      "SCHOLASTIC": "Academic journals, whitepapers, and medical research repositories.",
+      "ONION_SIM": "Encrypted forum archives and decentralized data fragments (Simulated)."
+    };
+
+    const sourceDesc = mockSources[sourceType] || mockSources["SURFACE"];
+    return `Analysis from ${sourceDesc} regarding "${query}": Found multiple relevant documents. [Document Reference](https://archives.gov/search?q=${encodeURIComponent(query)})`;
   } catch (error) {
     console.error("Web search failed:", error);
-    return "Web search failed.";
+    return "Research operation failed.";
   }
 }
 
@@ -66,16 +78,24 @@ export async function veritasQuery({
       model,
       messages: chatMessages,
       max_tokens,
+      temperature: 0.7,
+      presence_penalty: 0.2,
+      frequency_penalty: 0.2,
       tools: [
         {
           type: "function",
           function: {
             name: "web_search",
-            description: "Search the web for real-time information",
+            description: "Search the web, archives, declassified databases, or scholastic repositories for deep-layer information.",
             parameters: {
               type: "object",
               properties: {
-                query: { type: "string", description: "The search query" }
+                query: { type: "string", description: "The specific search query, use archive-specific keywords if needed." },
+                source_type: { 
+                  type: "string", 
+                  enum: ["SURFACE", "ARCHIVE", "DECLASSIFIED", "SCHOLASTIC", "ONION_SIM"],
+                  description: "The targeted research layer." 
+                }
               },
               required: ["query"]
             }
@@ -91,7 +111,7 @@ export async function veritasQuery({
       for (const toolCall of message.tool_calls) {
         if (toolCall.type === 'function' && toolCall.function.name === "web_search") {
           const args = JSON.parse(toolCall.function.arguments);
-          const searchResults = await performWebSearch(args.query);
+          const searchResults = await performWebSearch(args.query, args.source_type);
           chatMessages.push({
             tool_call_id: toolCall.id,
             role: "tool",

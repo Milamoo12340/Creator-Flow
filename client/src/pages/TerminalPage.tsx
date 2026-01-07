@@ -58,7 +58,7 @@ export function TerminalPage() {
         </p>
       </header>
       
-      <div className="chat-window h-[60vh] overflow-y-auto mb-4 border border-green-900 p-4 rounded bg-black/50">
+      <div className="chat-window h-[75vh] overflow-y-auto mb-4 border border-green-900 p-4 rounded bg-black/50 scrollbar-thin scrollbar-thumb-green-900">
         {messages.map((msg, idx) => (
           <div key={idx} className={`mb-4 ${msg.role === 'user' ? 'text-blue-400' : 'text-green-400'}`}>
             <div className="flex gap-2">
