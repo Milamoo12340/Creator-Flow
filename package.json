@@ -11,10 +11,10 @@
     "start": "NODE_ENV=production node dist/index.cjs",
     "check": "tsc",
     "db:push": "drizzle-kit push",
-    +   "predeploy": "npm run build",
-    +   "deploy": "gh-pages -d build",
-        "start": "react-scripts start",
-        "build": "react-scripts build"
+       "predeploy": "npm run build",
+       "deploy": "gh-pages -d build",
+       "start": "react-scripts start",
+       "build": "react-scripts build"
   },
   "dependencies": {
     "@faker-js/faker": "^8.4.1",
