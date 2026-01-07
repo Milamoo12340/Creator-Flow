@@ -15,19 +15,49 @@ const toolLogs = [
 ];
 
 export function NetworkPage() {
-  // Generate some random nodes for the visualization
-  const nodes = Array.from({ length: 20 }).map((_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    size: Math.random() * 20 + 5,
-  }));
+  const [stats, setStats] = useState({
+    nodes: 1420,
+    traffic: 44.2,
+    threat: "STABLE",
+    threatColor: "text-primary"
+  });
 
   const [logs, setLogs] = useState(toolLogs);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      // Rotate logs to simulate live feed and inject actual search terms if available
+      setStats(prev => {
+        const lastChat = localStorage.getItem("veritas_chat_history");
+        let queryLength = 0;
+        if (lastChat) {
+          try {
+            const history = JSON.parse(lastChat);
+            queryLength = history.length;
+          } catch (e) {}
+        }
+
+        const newTraffic = (44.2 + (Math.random() * 5 * (1 + queryLength / 10))).toFixed(1);
+        const newNodes = Math.floor(1400 + Math.random() * 100 + (queryLength * 5));
+        
+        let threat = "STABLE";
+        let color = "text-primary";
+        if (queryLength > 10) {
+          threat = "ELEVATED";
+          color = "text-yellow-500";
+        }
+        if (queryLength > 20) {
+          threat = "CRITICAL";
+          color = "text-red-500";
+        }
+
+        return {
+          nodes: newNodes,
+          traffic: parseFloat(newTraffic),
+          threat,
+          threatColor: color
+        };
+      });
+
       setLogs(prev => {
         const newLogs = [...prev];
         const lastChat = localStorage.getItem("veritas_chat_history");
@@ -42,17 +72,34 @@ export function NetworkPage() {
 
         const first = newLogs.shift();
         if (first) {
-          if (latestQuery && Math.random() > 0.7) {
-             first.action = `Deep Analysis: ${latestQuery.substring(0, 20)}...`;
-             first.status = "ACTIVE";
+          if (latestQuery && Math.random() > 0.6) {
+             const sources = ["NARA_VAULT", "CIA_FOIA", "DARPA_NET", "WAYBACK", "ONION_DIR"];
+             const source = sources[Math.floor(Math.random() * sources.length)];
+             first.tool = source;
+             first.action = `Intercepting: ${latestQuery.substring(0, 24)}...`;
+             first.status = Math.random() > 0.8 ? "ENCRYPTED" : "DECODING";
+             first.latency = `${Math.floor(Math.random() * 1000)}ms`;
+          } else if (Math.random() > 0.9) {
+             first.tool = "WATCHER";
+             first.action = "Anomaly detected in node " + Math.floor(Math.random() * 100);
+             first.status = "THREAT";
+             first.latency = "0ms";
           }
           newLogs.push(first);
         }
         return newLogs;
       });
-    }, 2000);
+    }, 1500);
     return () => clearInterval(interval);
   }, []);
+
+  // Generate some random nodes for the visualization
+  const nodes = Array.from({ length: 20 }).map((_, i) => ({
+    id: i,
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    size: Math.random() * 20 + 5,
+  }));
 
   return (
     <div className="h-full w-full p-4 lg:p-8 relative overflow-hidden flex flex-col lg:flex-row gap-6">
@@ -60,9 +107,9 @@ export function NetworkPage() {
       {/* LEFT PANEL - MAP */}
       <div className="flex-1 relative flex flex-col min-h-[50vh]">
         <div className="relative z-10 mb-4">
-          <GlitchHeader text="GLOBAL SURVEILLANCE MAP" size="lg" />
+          <GlitchHeader text="GLOBAL SIGNAL INTELLIGENCE" size="lg" />
           <p className="text-muted-foreground font-mono mt-2">
-            Tracking active signal intercepts and anomalous data packets.
+            Real-time tracking of investigative intercepts and data anomalies.
           </p>
         </div>
 
@@ -75,10 +122,10 @@ export function NetworkPage() {
 
         <div className="flex-1 border border-primary/20 rounded-md bg-black/40 backdrop-blur-sm relative overflow-hidden">
            <div className="absolute top-4 right-4 z-20">
-               <div className="flex flex-col gap-1 text-[10px] font-mono text-primary">
-                   <span>NODES_ACTIVE: 1,420</span>
-                   <span>TRAFFIC_VOL: 44.2 TB/s</span>
-                   <span>THREAT_LEVEL: ELEVATED</span>
+               <div className="flex flex-col gap-1 text-[10px] font-mono text-primary text-right">
+                   <span>NODES_ACTIVE: {stats.nodes}</span>
+                   <span>TRAFFIC_VOL: {stats.traffic} TB/s</span>
+                   <span className={stats.threatColor}>THREAT_LEVEL: {stats.threat}</span>
                </div>
            </div>
 
