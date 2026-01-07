@@ -1,8 +1,11 @@
 // server/openai.ts
 import { OpenAI } from "openai";
 
+// Using default initialization which picks up AI_INTEGRATIONS_OPENAI_API_KEY
+// and AI_INTEGRATIONS_OPENAI_BASE_URL automatically if they are set correctly.
+// We explicitly pass them just in case to ensure they are picked from process.env.
 const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY,
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY || process.env.OPENAI_API_KEY || "dummy_api_key",
   baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined,
 });
 

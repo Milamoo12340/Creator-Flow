@@ -42,7 +42,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   const originalResJson = res.json.bind(res);
   res.json = (bodyJson: any, ...args: any[]) => {
     capturedJsonResponse = bodyJson;
-    return originalResJson(bodyJson, ...args);
+    return originalResJson(bodyJson);
   };
 
   res.on("finish", () => {
