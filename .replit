@@ -46,4 +46,3 @@ integrations = ["javascript_openai:1.0.0", "javascript_database:1.0.0", "javascr
 [userenv]
 
 [userenv.shared]
-AI_INTEGRATIONS_OPENAI_API_KEY = "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"
