@@ -13,16 +13,17 @@ export function TerminalPage() {
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim()) return;
+    if (!input.trim() || loading) return;
     
     const userMsg = { role: "user", text: input };
     setLoading(true);
     setMessages((msgs) => [...msgs, userMsg]);
+    const currentInput = input;
     setInput("");
 
     try {
       const { data } = await axios.post("/api/chat", {
-        prompt: input,
+        prompt: currentInput,
         messages: messages.map(m => ({ role: m.role, content: m.text }))
       });
       
@@ -87,12 +88,18 @@ export function TerminalPage() {
         <div ref={chatEndRef} />
       </div>
 
-      <form onSubmit={sendMessage} className="flex gap-2">
+      <form onSubmit={sendMessage} className="flex gap-2 items-center border-t border-green-900/50 pt-4">
         <span className="text-green-500 font-bold">{">"}</span>
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          className="flex-1 bg-transparent border-none outline-none focus:ring-0 text-green-500 placeholder-green-900"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              sendMessage(e as any);
+            }
+          }}
+          className="flex-1 bg-transparent border-none outline-none focus:ring-0 text-green-500 placeholder-green-900 py-2"
           placeholder="Enter query for deep-layer analysis..."
           disabled={loading}
           autoFocus
@@ -100,9 +107,9 @@ export function TerminalPage() {
         <button 
           type="submit" 
           disabled={loading || !input.trim()}
-          className="hidden"
+          className="px-4 py-1 border border-green-900 text-green-700 hover:text-green-500 hover:border-green-500 transition-colors text-xs font-bold uppercase tracking-widest"
         >
-          Execute
+          {loading ? "BUSY" : "EXECUTE"}
         </button>
       </form>
     </div>
